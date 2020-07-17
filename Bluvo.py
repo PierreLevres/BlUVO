@@ -35,7 +35,7 @@ def main():
         ContentLengthToken = '154'
     else:
         return
-    BaseHost = 'prd.eu-ccapi.'+car_brand'.com:8080'
+    BaseHost = 'prd.eu-ccapi.'+car_brand+'.com:8080'
     BaseURL = 'https://'+BaseHost
 
     def log(value):
