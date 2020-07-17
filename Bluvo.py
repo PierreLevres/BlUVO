@@ -23,18 +23,19 @@ def main():
     logging = False
 
     # constants, depending on Brand Kia or Hyundai
-    if car_brand == 'Kia':
-        BaseHost = 'prd.eu-ccapi.kia.com:8080'
+    if car_brand == 'kia':
         ServiceId = 'fdc85c00-0a2f-4c64-bcb4-2cfb1500730a'
         BasicToken = 'Basic ZmRjODVjMDAtMGEyZi00YzY0LWJjYjQtMmNmYjE1MDA3MzBhOnNlY3JldA=='
         ApplicationId= '693a33fa-c117-43f2-ae3b-61a02d24f417'
         ContentLengthToken = '150'
-    elif car_brand == 'Hyundai':
-        BaseHost = 'prd.eu-ccapi.hyundai.com:8080'
+    elif car_brand == 'hyundai':
         ServiceId = '6d477c38-3ca4-4cf3-9557-2a1929a94654'
         BasicToken = 'Basic NmQ0NzdjMzgtM2NhNC00Y2YzLTk1NTctMmExOTI5YTk0NjU0OktVeTQ5WHhQekxwTHVvSzB4aEJDNzdXNlZYaG10UVI5aVFobUlGampvWTRJcHhzVg=='
         ApplicationId = '99cfff84-f4e2-4be8-a5ed-e5b755eb6581'
         ContentLengthToken = '154'
+    else:
+        return
+    BaseHost = 'prd.eu-ccapi.'+car_brand'.com:8080'
     BaseURL = 'https://'+BaseHost
 
     def log(value):
