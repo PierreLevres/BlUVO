@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, urlencode, quote_plus
 # email = from Uvo or Bluelink App'
 # password = from Uvo or Bluelink App
 # pin = from Uvo or Bluelink App
-# abrp_token = Obtain from ABRP app by Shoosing live data from Torque Pro
+# abrp_token = Obtain from ABRP app by choosing live data from Torque Pro
 # abrp_carmodel = 'kia:niro:19:64:other' Obtain from ABRP API site
 # DarkSkyApiKey = obtain from Darksky, or rewrite function
 # car_brand = 'Kia' or ' Hyundai'
@@ -27,12 +27,14 @@ def main():
         BaseHost = 'prd.eu-ccapi.kia.com:8080'
         ServiceId = 'fdc85c00-0a2f-4c64-bcb4-2cfb1500730a'
         BasicToken = 'Basic ZmRjODVjMDAtMGEyZi00YzY0LWJjYjQtMmNmYjE1MDA3MzBhOnNlY3JldA=='
-        applicationId= '693a33fa-c117-43f2-ae3b-61a02d24f417'
+        ApplicationId= '693a33fa-c117-43f2-ae3b-61a02d24f417'
+        ContentLengthToken = '150'
     elif car_brand == 'Hyundai':
         BaseHost = 'prd.eu-ccapi.hyundai.com:8080'
         ServiceId = '6d477c38-3ca4-4cf3-9557-2a1929a94654'
         BasicToken = 'Basic NmQ0NzdjMzgtM2NhNC00Y2YzLTk1NTctMmExOTI5YTk0NjU0OktVeTQ5WHhQekxwTHVvSzB4aEJDNzdXNlZYaG10UVI5aVFobUlGampvWTRJcHhzVg=='
-        applicationId = '99cfff84-f4e2-4be8-a5ed-e5b755eb6581'
+        ApplicationId = '99cfff84-f4e2-4be8-a5ed-e5b755eb6581'
+        ContentLengthToken = '154'
     BaseURL = 'https://'+BaseHost
 
     def log(value):
@@ -145,7 +147,7 @@ def main():
     headers = {
         'Authorization': BasicToken,
         'Content-type': 'application/x-www-form-urlencoded',
-        'Content-Length': '154',
+        'Content-Length': ContentLengthToken,
         'Host': BaseHost,
         'Connection': 'close',
         'Accept-Encoding': 'gzip, deflate',
@@ -168,7 +170,7 @@ def main():
     headers = {
         'Authorization': access_token,
         'ccsp-device-id': deviceId,
-        'ccsp-application-id': applicationId,
+        'ccsp-application-id': ApplicationId,
         'offset': '1',
         'Host': BaseHost,
         'Connection': 'close',
@@ -192,7 +194,7 @@ def main():
     headers = {
         'Authorization': access_token,
         'ccsp-device-id': deviceId,
-        'ccsp-application-id': applicationId,
+        'ccsp-application-id': ApplicationId,
         'offset': '1',
         'Content-Type': 'application/json;charset=UTF-8',
         'Content-Length': '72',
