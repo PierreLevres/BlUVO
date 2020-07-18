@@ -6,6 +6,23 @@ import json
 import urllib.parse as urlparse
 from urllib.parse import parse_qs, urlencode, quote_plus
 
+def getConstants(car_brand):
+    if car_brand == 'kia':
+        ServiceId = 'fdc85c00-0a2f-4c64-bcb4-2cfb1500730a'
+        BasicToken = 'Basic ZmRjODVjMDAtMGEyZi00YzY0LWJjYjQtMmNmYjE1MDA3MzBhOnNlY3JldA=='
+        ApplicationId = '693a33fa-c117-43f2-ae3b-61a02d24f417'
+        ContentLengthToken = '150'
+    elif car_brand == 'hyundai':
+        ServiceId = '6d477c38-3ca4-4cf3-9557-2a1929a94654'
+        BasicToken = 'Basic NmQ0NzdjMzgtM2NhNC00Y2YzLTk1NTctMmExOTI5YTk0NjU0OktVeTQ5WHhQekxwTHVvSzB4aEJDNzdXNlZYaG10UVI5aVFobUlGampvWTRJcHhzVg=='
+        ApplicationId = '99cfff84-f4e2-4be8-a5ed-e5b755eb6581'
+        ContentLengthToken = '154'
+    else:
+        return -1
+    BaseHost = 'prd.eu-ccapi.' + car_brand + '.com:8080'
+    BaseURL = 'https://' + BaseHost
+    return ServiceId, BasicToken, ApplicationId, ContentLengthToken, BaseHost, BaseURL
+
 def APIgetDeviceID(BaseURL,ServiceId, BaseHost):
     # deviceID
     url = BaseURL + '/api/v1/spa/notifications/register'
@@ -165,6 +182,8 @@ def APIgetStatus(BaseURL, vehicleId, controlToken, deviceId):
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         response = json.loads(response.text)
+        #print ('status output')
+        #print (response['resMsg'])
         return response['resMsg']
     else:
         print('NOK status')
@@ -182,6 +201,8 @@ def APIgetOdometer(BaseURL, vehicleId, controlToken, deviceId):
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         response = json.loads(response.text)
+        #print ('status/latest output')
+        #print(response['resMsg'])
         odometer = response['resMsg']['vehicleStatusInfo']['odometer']['value']
         return odometer
     else:
@@ -200,6 +221,8 @@ def APIgetLocation(BaseURL, vehicleId, controlToken, deviceId):
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         response = json.loads(response.text)
+        #print ('location output')
+        #print (response['resMsg'])
         return response['resMsg']
     else:
         print('NOK location')
