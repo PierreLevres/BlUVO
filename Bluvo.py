@@ -243,10 +243,10 @@ def main():
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        statusresponse = json.loads(response.text)
-        log(statusresponse['resMsg'])
-        trunkopen = statusresponse['resMsg']['trunkOpen']
-        evStatus = statusresponse['resMsg']['evStatus']
+        response = json.loads(response.text)
+        log(response['resMsg'])
+        trunkopen = response['resMsg']['trunkOpen']
+        evStatus = response['resMsg']['evStatus']
         soc = evStatus['batteryStatus']
         charging = evStatus['batteryCharge']
         rangeleft = evStatus['drvDistance'][0]['rangeByFuel']['totalAvailableRange']['value']
@@ -263,8 +263,8 @@ def main():
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        statusresponse = json.loads(response.text)
-        odometer=statusresponse['resMsg']['vehicleStatusInfo']['odometer']['value']
+        response = json.loads(response.text)
+        odometer=response['resMsg']['vehicleStatusInfo']['odometer']['value']
     else:
         print('NOK status')
         return
@@ -278,13 +278,13 @@ def main():
         }
     response = requests.get(url, headers = headers)
     if response.status_code == 200:
-        statusresponse = json.loads(response.text)
-        log (statusresponse['resMsg'])
-        latitude=statusresponse['resMsg']['gpsDetail']['coord']['lat']
-        longitude=statusresponse['resMsg']['gpsDetail']['coord']['lon']
-        altitude=statusresponse['resMsg']['gpsDetail']['coord']['alt']
-        heading=statusresponse['resMsg']['gpsDetail']['head']
-        speed=statusresponse['resMsg']['gpsDetail']['speed']['value']
+        response = json.loads(response.text)
+        log (response['resMsg'])
+        latitude=response['resMsg']['gpsDetail']['coord']['lat']
+        longitude=response['resMsg']['gpsDetail']['coord']['lon']
+        altitude=response['resMsg']['gpsDetail']['coord']['alt']
+        heading=response['resMsg']['gpsDetail']['head']
+        speed=response['resMsg']['gpsDetail']['speed']['value']
     else:
         print('NOK status')
         return
