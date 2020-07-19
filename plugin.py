@@ -54,7 +54,6 @@ class BasePlugin:
         return
 
     def onStart(self):
-        #from the selected car types get the left part to determine car brand
         #get homelat and homelon from domoticz
         if len(Devices) == 0:
         # create devices
@@ -64,7 +63,7 @@ class BasePlugin:
         # connect to car
         Domoticz.Log("Plugin is started.")
         # slower hearbeat
-        Domoticz.Heartbeat(300)
+        Domoticz.Heartbeat(60)
 
     def onStop(self):
         Domoticz.Log("onStop called")
