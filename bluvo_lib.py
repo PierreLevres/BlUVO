@@ -6,6 +6,10 @@ import json
 import urllib.parse as urlparse
 from urllib.parse import parse_qs, urlencode, quote_plus
 
+class APIError(Exception):
+    pass
+
+
 def getConstants(car_brand):
     if car_brand == 'kia':
         ServiceId = 'fdc85c00-0a2f-4c64-bcb4-2cfb1500730a'
@@ -18,13 +22,13 @@ def getConstants(car_brand):
         ApplicationId = '99cfff84-f4e2-4be8-a5ed-e5b755eb6581'
         ContentLengthToken = '154'
     else:
-        return -1
+        raise APIError('Carbrand not OK.')
     BaseHost = 'prd.eu-ccapi.' + car_brand + '.com:8080'
     BaseURL = 'https://' + BaseHost
     return ServiceId, BasicToken, ApplicationId, ContentLengthToken, BaseHost, BaseURL
 
+
 def APIgetDeviceID(BaseURL,ServiceId, BaseHost):
-    # deviceID
     url = BaseURL + '/api/v1/spa/notifications/register'
     headers = {
         'ccsp-service-id': ServiceId,
@@ -41,12 +45,10 @@ def APIgetDeviceID(BaseURL,ServiceId, BaseHost):
         deviceId = response['resMsg']['deviceId']
         return deviceId
     else:
-        print('NOK deviceID')
-        return -1
+        raise APIError('NOK deviceID. Error: '+str(response.status_code))
 
 
 def APIgetCookie(ServiceId, BaseURL):
-    # cookie for login
     session = requests.Session()
     response = session.get(
         BaseURL + '/api/v1/user/oauth2/authorize?response_type=code&state=test&client_id=' + ServiceId + '&redirect_uri=' + BaseURL + '/api/v1/user/oauth2/redirect')
@@ -54,12 +56,10 @@ def APIgetCookie(ServiceId, BaseURL):
         cookies = session.cookies.get_dict()
         return cookies
     else:
-        print('NOK cookie for login')
-        return -1
+        raise APIError('NOK cookie for login. Error: '+str(response.status_code))
 
 
 def APIsetLanguage(BaseURL, cookies):
-    # set language
     url = BaseURL + '/api/v1/user/language'
     headers = {'Content-type': 'application/json'}
     data = {"lang": "en"}
@@ -79,12 +79,10 @@ def APIgetAuthCode(BaseURL, email, password, cookies):
         authCode = ''.join(parse_qs(parsed.query)['code'])
         return authCode
     else:
-        print('NOK login')
-        return -1
+        raise APIError('NOK login. Error: '+str(response.status_code))
 
 
 def APIgetToken(BaseURL, BasicToken, ContentLengthToken, BaseHost, authCode):
-    # token
     url = BaseURL + '/api/v1/user/oauth2/token'
     headers = {
         'Authorization': BasicToken,
@@ -101,12 +99,10 @@ def APIgetToken(BaseURL, BasicToken, ContentLengthToken, BaseHost, authCode):
         access_token = response['token_type'] + ' ' + response['access_token']
         return access_token
     else:
-        print('NOK token')
-        return -1
+        raise APIError('NOK token. Error: '+str(response.status_code))
 
 
 def APIgetVehicleId(BaseURL, access_token, deviceId, ApplicationId, BaseHost):
-    # vehicles
     url = BaseURL + '/api/v1/spa/vehicles'
     headers = {
         'Authorization': access_token,
@@ -123,12 +119,10 @@ def APIgetVehicleId(BaseURL, access_token, deviceId, ApplicationId, BaseHost):
         vehicleId = response['resMsg']['vehicles'][0]['vehicleId']
         return vehicleId
     else:
-        print('NOK vehicles')
-        return -1
+        raise APIError('NOK vehicles. Error: '+str(response.status_code))
 
 
 def APIsetWakeup(BaseURL, vehicleId, access_token, deviceId, ApplicationId, BaseHost):
-    # prewakeup
     url = BaseURL + '/api/v1/spa/vehicles/' + vehicleId + '/control/engine'
     headers = {
         'Authorization': access_token,
@@ -146,8 +140,7 @@ def APIsetWakeup(BaseURL, vehicleId, access_token, deviceId, ApplicationId, Base
     if response.status_code == 200:
         return True
     else:
-        print('NOK prewakeup')
-        return -1
+        raise APIError('NOK prewakeup. Error: '+str(response.status_code))
 
 
 def APIgetControlToken(BaseURL, access_token, BaseHost, deviceId, pin):
@@ -167,12 +160,10 @@ def APIgetControlToken(BaseURL, access_token, BaseHost, deviceId, pin):
         controlToken = 'Bearer ' + response['controlToken']
         return controlToken
     else:
-        print('NOK pin')
-        return -1
+        raise APIError('NOK pin. Error: '+str(response.status_code))
 
 
 def APIgetStatus(BaseURL, vehicleId, controlToken, deviceId):
-    # status
     url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/status'
     headers = {
         'Authorization': controlToken,
@@ -182,12 +173,9 @@ def APIgetStatus(BaseURL, vehicleId, controlToken, deviceId):
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         response = json.loads(response.text)
-        #print ('status output')
-        #print (response['resMsg'])
         return response['resMsg']
     else:
-        print('NOK status')
-        return -1
+        raise APIError('NOK status. Error: '+str(response.status_code))
 
 
 def APIgetOdometer(BaseURL, vehicleId, controlToken, deviceId):
@@ -206,8 +194,7 @@ def APIgetOdometer(BaseURL, vehicleId, controlToken, deviceId):
         odometer = response['resMsg']['vehicleStatusInfo']['odometer']['value']
         return odometer
     else:
-        print('NOK odometer')
-        return -1
+        raise APIError('NOK odometer. Error: '+str(response.status_code))
 
 
 def APIgetLocation(BaseURL, vehicleId, controlToken, deviceId):
@@ -221,9 +208,6 @@ def APIgetLocation(BaseURL, vehicleId, controlToken, deviceId):
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         response = json.loads(response.text)
-        #print ('location output')
-        #print (response['resMsg'])
         return response['resMsg']
     else:
-        print('NOK location')
-        return -1
+        raise APIError('NOK location. Error: '+str(response.status_code))

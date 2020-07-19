@@ -1,4 +1,4 @@
-#           BlUVO n Plugin for Domoticz
+#           bluvo n Plugin for Domoticz
 #
 #           Dev. Platform : Py 
 #
