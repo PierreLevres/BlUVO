@@ -17,19 +17,31 @@ def ConvertIfBool(value):
     else:
         return value
 
-def GetLocationTemperature(DarkSkyApiKey, lat, lon):
-    # TODO general: error handling with try and except / raise
-    # TODO change Darksky
-    getDarkSkyURL = 'https://api.darksky.net/forecast/' + DarkSkyApiKey + '/' + str(lat) + ',' + str(lon) + '?units=si'
-    response = requests.get(getDarkSkyURL)
-    if response.status_code == 200:
-        response = json.loads(response.text)
-        return response['currently']['temperature']
+def GetLocationTemperature(WeatherApiKey, WeatherProvider, lat, lon):
+    if WeatherProvider == 'DarkSky':
+        getWeatherURL = 'https://api.darksky.net/forecast/' + WeatherApiKey + '/' + str(lat) + ',' + str(lon) + '?units=si'
+        response = requests.get(getWeatherURL)
+        if response.status_code == 200:
+            response = json.loads(response.text)
+            return response['currently']['temperature']
+        else:
+            print('NOK Weather')
+            return -1
+    elif WeatherProvider == 'OpenWeather':
+        getWeatherURL = 'https://api.openweathermap.org/data/2.5/weather?lat=' + str(lat) + '&lon=' + str(lon) + '&appid=' + WeatherApiKey + '&units=metric'
+        response = requests.get(getWeatherURL)
+        if response.status_code == 200:
+            response = json.loads(response.text)
+            return response['main']['temp']
+        else:
+            print('NOK Weather')
+            return -1
     else:
         print('NOK Weather')
         return -1
 
-def SendABRPtelemetry(soc, speed, latitude, longitude, charging, abrp_carmodel, abrp_token,DarkSkyApiKey):
+
+def SendABRPtelemetry(soc, speed, latitude, longitude, charging, abrp_carmodel, abrp_token,WeatherApiKey, WeatherProvider):
     # ABRP API information: https://documenter.getpostman.com/view/7396339/SWTK5a8w?version=latest
     # ABRP Telemetry API KEY - DO NOT CHANGE
     abrp_apikey = '6f6a554f-d8c8-4c72-8914-d5895f58b1eb'
@@ -41,7 +53,7 @@ def SendABRPtelemetry(soc, speed, latitude, longitude, charging, abrp_carmodel, 
     data['lon'] = longitude
     data['is_charging'] = ConvertIfBool(charging)
     data['car_model'] = abrp_carmodel
-    data['ext_temp'] = GetLocationTemperature(DarkSkyApiKey, latitude, longitude)
+    data['ext_temp'] = GetLocationTemperature(WeatherApiKey, WeatherProvider, latitude, longitude)
     params = {'token': abrp_token, 'api_key': abrp_apikey, 'tlm': json.dumps(data, separators=(',', ':'))}
     response = requests.get('https://api.iternio.com/1/tlm/send?' + urlencode(params))
     if response.status_code == 200:

@@ -5,6 +5,7 @@ import uuid
 import json
 import urllib.parse as urlparse
 from urllib.parse import parse_qs, urlencode, quote_plus
+from datetime import datetime
 
 class APIError(Exception):
     pass
@@ -158,7 +159,7 @@ def APIgetControlToken(BaseURL, access_token, BaseHost, deviceId, pin):
     if response.status_code == 200:
         response = json.loads(response.text)
         controlToken = 'Bearer ' + response['controlToken']
-        return controlToken
+        return controlToken, datetime.now()
     else:
         raise APIError('NOK pin. Error: '+str(response.status_code))
 
