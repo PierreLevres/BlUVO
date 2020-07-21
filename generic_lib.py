@@ -40,7 +40,6 @@ def GetLocationTemperature(WeatherApiKey, WeatherProvider, lat, lon):
         print('NOK Weather')
         return -1
 
-
 def SendABRPtelemetry(soc, speed, latitude, longitude, charging, abrp_carmodel, abrp_token,WeatherApiKey, WeatherProvider):
     # ABRP API information: https://documenter.getpostman.com/view/7396339/SWTK5a8w?version=latest
     # ABRP Telemetry API KEY - DO NOT CHANGE
@@ -49,13 +48,14 @@ def SendABRPtelemetry(soc, speed, latitude, longitude, charging, abrp_carmodel, 
     data['utc'] = time.time()
     data['soc'] = soc
     data['speed'] = speed
-    data['lat'] = latitude
-    data['lon'] = longitude
+    if latitude != None:    data['lat'] = latitude
+    if longitude != None:   data['lon'] = longitude
     data['is_charging'] = ConvertIfBool(charging)
     data['car_model'] = abrp_carmodel
-    data['ext_temp'] = GetLocationTemperature(WeatherApiKey, WeatherProvider, latitude, longitude)
+    if WeatherProvider != None and WeatherApiKey != None and lat != None and lon != None: data['ext_temp'] = GetLocationTemperature(WeatherApiKey, WeatherProvider, latitude, longitude)
     params = {'token': abrp_token, 'api_key': abrp_apikey, 'tlm': json.dumps(data, separators=(',', ':'))}
-    response = requests.get('https://api.iternio.com/1/tlm/send?' + urlencode(params))
+    setABRPURL = 'https://api.iternio.com/1/tlm/send?' + urlencode(params)
+    response = requests.get(setABRPURL)
     if response.status_code == 200:
         response = json.loads(response.text)
         return response

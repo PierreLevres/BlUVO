@@ -6,9 +6,8 @@
 <plugin key="bluvo" name="Kia UVO and Hyundai Bluelink" author="plips" version="0.0.1">
     <params>
         <param field="Username" label="Email-address"           width="200px" required="true"  default="john.doe@gmail.com"                  />
-        <param field="Password" label="Password"                width="200px" required="true"  default="myLittleSecret"                      />
+        <param field="Password" label="Password"                width="200px" required="true"  default="myLittleSecret"   password="true"    />
         <param field="Port"     label="Pin"                     width=" 50px" required="true"  default="1234"                                />
-
         <param field="Mode1"    label="ABRP token"              width="300px" required="false" default="1234ab56-7cde-890f-a12b-3cde45678901"/>
         <param field="Mode2"    label="ABRP Car Type"           width="200px" required="true"                                                 >  
             <options>
@@ -149,7 +148,7 @@ class BasePlugin:
                 carstatus = APIgetStatus(BaseURL, vehicleId, controlToken, deviceId)
                 odometer = round(APIgetOdometer(BaseURL, vehicleId, controlToken, deviceId),1)
                 location = APIgetLocation(BaseURL, vehicleId, controlToken, deviceId)
-
+                Domoticz.Log("polled car")
                 # from car status
                 trunkopen =1 if carstatus['trunkOpen'] else 0
                 soc = carstatus['evStatus']['batteryStatus']
@@ -161,7 +160,7 @@ class BasePlugin:
                 longitude = location['gpsDetail']['coord']['lon']
                 speed = location['gpsDetail']['speed']['value']
                 afstand = round(distance(latitude, longitude, float(homelat), float(homelon)),1)
-
+                Domoticz.Log(str(rangeLeft))
                 # send information to domoticz
                 UpdateDevice(1, 0, odometer)  # kmstand
                 UpdateDevice(2, 0, rangeLeft)  # kmstand
