@@ -5,13 +5,20 @@ import logging
 from bluvo_main import initialise, pollcar
 
 from params import *  # p_parameters are read
-global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, URLphoneincar, forcedpolltimer
-
+global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer
 
 logging.basicConfig(filename='bluvo.log', level=logging.INFO)
-initialise(p_runFromDomoticz,p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_URLphoneincar, p_forcepollinterval)
+initialise(p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval)
 while True:
-    updated,afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v = pollcar()
+    try:  # read flag of phone in car from or whereever you want
+        session = requests.Session()
+        response = session.get(p_URLphoneincar)
+        response = json.loads(response.text)
+        phoneincarflag = response['result'][0]['Status'] == 'On'
+    except:
+        logging.info('error in phone in car flag')
+        phoneincarflag = False
+    updated,afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v = pollcar(phoneincarflag)
     if updated:
         print('afstand van huis, rijrichting, snelheid en km-stand: ', afstand, ' / ', heading, '/', speed, '/',odometer)
         print(googlelocation)

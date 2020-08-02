@@ -16,7 +16,6 @@ def logit (msg,*args):
 def processData(carstatus, odometer, location):
     global homelocation, abrp_carmodel, abrp_token, WeatherApiKey, WeatherProvider
     location = location['gpsDetail']
-    carstatus = carstatus['vehicleStatusInfo']['vehicleStatus']
     timestamp = carstatus['time']
     heading= location['head']
     speed = location['speed']['value']
@@ -40,10 +39,11 @@ def processData(carstatus, odometer, location):
     except: logging.info('error in ABRP')
     return(afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v)
 
-def initialise(p_runFromDomoticz, p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_URLphoneincar, p_forcepollinterval):
-    global runFromDomoticz, email, password, pin, abrp_token, abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, URLphoneincar, forcepollinterval
+def initialise(p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval):
+    logging.info("started initialise")
+
+    global runFromDomoticz, email, password, pin, abrp_token, abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcepollinterval
     # p_parameters are fed into global variables
-    runFromDomoticz=p_runFromDomoticz
     email = p_email
     password = p_password
     pin = p_pin
@@ -52,7 +52,6 @@ def initialise(p_runFromDomoticz, p_email, p_password, p_pin, p_abrp_token,p_abr
     WeatherApiKey = p_WeatherApiKey
     WeatherProvider = p_WeatherProvider
     homelocation = p_homelocation
-    URLphoneincar = p_URLphoneincar
     forcepollinterval = p_forcepollinterval
 
     global oldstatustime, oldpolltime
@@ -60,37 +59,28 @@ def initialise(p_runFromDomoticz, p_email, p_password, p_pin, p_abrp_token,p_abr
     oldpolltime=""
     car_brand = (abrp_carmodel.split(":", 1)[0])
     login(car_brand, email, password, pin)
+    logging.info("logged in")
 
-def pollcar():
+def pollcar(phoneincarflag):
+    #logging.info("phone in car %s",phoneincarflag)
     global oldstatustime, oldpolltime, forcepollinterval, runFromDomoticz
     # TODO find a way to have better poll/refresh intervals
     updated = False
     afstand= heading= speed= odometer= googlelocation= rangeleft= soc= charging= trunkopen=doorlock=driverdooropen=soc12v=status12v =0
     try:
         carstatus = APIgetStatus(False)
+        carstatus = carstatus['vehicleStatusInfo']['vehicleStatus'] #use the vehicle status to determine stuff and shorten script
         odometer = APIgetOdometer()
         location = APIgetLocation()
+        #logging.info('got carstatus from cache at %s',datetime.now())
         updated = False
-        if oldstatustime != carstatus['vehicleStatusInfo']['vehicleStatus']['time']:
-            oldstatustime = carstatus['vehicleStatusInfo']['vehicleStatus']['time']
+        if oldstatustime != carstatus['time']:
+            oldstatustime = carstatus['time']
             afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v=processData(carstatus,odometer,location)  # process entire cachestring after timestamp is updated
             updated = True
-        carstatus = carstatus['vehicleStatusInfo']['vehicleStatus'] #use the vehicle status to determine stuff and shorten script
         try:
             sleepmodecheck = carstatus['sleepModeCheck']
         except KeyError: sleepmodecheck = False #sleep mode check is not there...
-        try: #read flag of phone in car from domoticz, move a bit further since this is a call to domoticz it is slower
-            if URLphoneincar == "" and runFromDomoticz:
-                phoneincarflag = Devices[9].sValue
-            else:
-                session = requests.Session()
-                response= session.get(URLphoneincar)
-                response=json.loads(response.text)
-                phoneincarflag = response['result'][0]['Status'] == 'On'
-        except:
-            logging.info('error in phone in car flag')
-            phoneincarflag = False
-
         # at minimum every interval minutes a true poll
         try:
             if oldpolltime =='': forcedpolltimer = True
@@ -98,16 +88,18 @@ def pollcar():
         except:
             logging.info('error in determining force poll')
             forcedpolltimer=false
-        shouldrefresh = sleepmodecheck or forcedpolltimer or phoneincarflag or carstatus['engine'] or (not (carstatus['doorLock'])) or carstatus['trunkOpen'] or carstatus['evStatus']['batteryCharge']
-        if shouldrefresh:
+
+        if sleepmodecheck or forcedpolltimer or phoneincarflag or carstatus['engine'] or (not (carstatus['doorLock'])) or carstatus['trunkOpen'] or carstatus['evStatus']['batteryCharge']:
             logging.info('I will refresh data because: sleepmodecheck %s, phone in car %s, engine running %s, doors unlocked %s, trunk open %s, charging %s, forced poll timer %s', sleepmodecheck, phoneincarflag, carstatus['engine'], (not (carstatus['doorLock'])),carstatus['trunkOpen'], carstatus['evStatus']['batteryCharge'], forcedpolltimer)
             APIgetStatus(True) #get it and process it immediately
             carstatus = APIgetStatus(False)
+            carstatus = carstatus['vehicleStatusInfo']['vehicleStatus']  # use the vehicle status to determine stuff and shorten script
             odometer = APIgetOdometer()
             location = APIgetLocation()
             oldpolltime = datetime.now()
-            oldstatustime = carstatus['vehicleStatusInfo']['vehicleStatus']['time']
+            oldstatustime = carstatus['time']
             updated = True
+            #logging.info('got carstatus from cache at %s', datetime.now())
             afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v=processData(carstatus, odometer, location)  # process entire cachestring after timestamp is updated
     except:
         logging.info("error somewhere")

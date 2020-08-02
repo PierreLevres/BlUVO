@@ -44,11 +44,11 @@ import Domoticz, logging
 
 from bluvo_main import initialise, pollcar
 
-global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, URLphoneincar, forcedpolltimer
+global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer
 global runfromDomoticz
 
 class BasePlugin:
-    global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, URLphoneincar, forcedpolltimer
+    global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer
     def onStart(self):
         if Parameters["Mode6"] == "Debug":
             Domoticz.Debugging(1)
@@ -80,9 +80,8 @@ class BasePlugin:
         if p_homelocation == None:
             Domoticz.Log("Unable to parse coordinates")
             return False
-        p_runFromDomoticz=True
         logging.basicConfig(filename='bluvo.log', level=logging.INFO)
-        initialise(p_runFromDomoticz,p_email, p_password, p_pin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, "", p_forcepollinterval)
+        initialise(p_email, p_password, p_pin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval)
         Domoticz.Heartbeat(30)
         return True
 
@@ -93,13 +92,15 @@ class BasePlugin:
         return True
 
     def onCommand(self, Unit, Command, Level, Hue):
+        logging.info("on command %s %s %s %s", Unit, Command, Level, Hue)
         return True
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         return True
 
     def onHeartbeat(self):
-        updated,afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = pollcar()
+        phoneincar = (Devices[9].nValue==1)
+        updated,afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = pollcar(phoneincar)
         if updated:
             UpdateDevice(1, 0, odometer)  # kmstand
             UpdateDevice(2, 0, rangeleft)  # kmstand
