@@ -1,69 +1,25 @@
-import sys
-import urllib
-import requests
-import uuid
-import json
-import urllib.parse as urlparse
-from urllib.parse import parse_qs, urlencode, quote_plus
-from datetime import datetime
+
 import time
+import logging
+
+from bluvo_main import initialise, pollcar
+
+from params import *  # p_parameters are read
+global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, URLphoneincar, forcedpolltimer
 
 
-
-# get the constants for this type of car
-# parameters from parameter file or from domoticz
-# email = from Uvo or Bluelink App'
-# password = from Uvo or Bluelink App
-# pin = from Uvo or Bluelink App
-# abrp_token = Obtain from ABRP app by choosing live data from Torque Pro
-# abrp_carmodel = 'kia:niro:19:64:other' Obtain from ABRP API site
-# DarkSkyApiKey = obtain from Darksky, or rewrite function
-# OpenWeatherApiKey = obtain from Darksky, or rewrite function
-# homelat
-# homelon
-
-# global abrp_carmodel, abrp_token, DarkSkyApiKey, OpenWeatherApiKey, homelat, homelon, email, password, pin
-from params import *
-from generic_lib import SendABRPtelemetry, distance
-from bluvo_lib import APIError, getConstants, APIgetDeviceID, APIgetCookie, APIsetLanguage, APIgetAuthCode, APIgetToken, \
-    APIgetVehicleId, APIsetWakeup, APIgetControlToken, APIgetStatus, APIgetOdometer, APIgetLocation
-from bluvo_main import initialise, doStuff
-
-
-def main():
-    initialise(abrp_carmodel, abrp_token, WeatherApiKey, WeatherProvider, homelat, homelon, email, password, pin)
-    while True:
-        someThingNew, carstatus, odometer, location = doStuff(abrp_carmodel, abrp_token, WeatherApiKey, WeatherProvider, homelat, homelon, email, password, pin)
-        # from car status
-        if someThingNew:
-            lastupdated = carstatus['time']
-            trunkopen = carstatus['trunkOpen']
-            driverdooropen = carstatus['doorOpen']['frontLeft']
-            soc = carstatus['evStatus']['batteryStatus']
-            charging = carstatus['evStatus']['batteryCharge']
-            rangeLeft = carstatus['evStatus']['drvDistance'][0]['rangeByFuel']['totalAvailableRange']['value']
-            soc12V = carstatus['battery']['batSoc']
-            status12V = carstatus['battery']['batState']
-            # from location
-            latitude = location['gpsDetail']['coord']['lat']
-            longitude = location['gpsDetail']['coord']['lon']
-            heading = location['gpsDetail']['head']
-            speed = location['gpsDetail']['speed']['value']
-
-            # send information to domoticz
-            lastupdated = datetime.strptime(lastupdated, "%Y%m%d%H%M%S")
-            print(lastupdated.strftime("%d-%m-%Y %H:%M:%S"))
-            print('laatste update: ', lastupdated.strftime("%d/%m/%Y %H:%M:%S"))
-            print('locatie en afstand: ', latitude, ',', longitude, '/',
-                  distance(latitude, longitude, float(homelat), float(homelon)))
-            print('rijrichting, snelheid en km-stand: ', heading, '/', speed, '/', odometer)
-            print('bestuurdersportier en kofferbak open: ', driverdooropen, trunkopen)
-            print('EV soc, opladen, range: ', soc, '% ', charging, '/', rangeLeft)
-            print('12V accu SoC en status: ', soc12V, status12V)
-
-            # send soc, temp, location to ABRP
-            SendABRPtelemetry(soc, speed, latitude, longitude, charging, abrp_carmodel, abrp_token, WeatherApiKey)
-        time.sleep(60)
-
-if __name__ == '__main__':
-    main()
+logging.basicConfig(filename='bluvo.log', level=logging.INFO)
+initialise(p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_URLphoneincar, p_forcepollinterval)
+while True:
+    updated,afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v = pollcar()
+    if updated:
+        print('afstand van huis, rijrichting, snelheid en km-stand: ', afstand, ' / ', heading, '/', speed, '/',odometer)
+        print(googlelocation)
+        print("range ", rangeleft, "soc: ", soc)
+        if charging: print("Laden")
+        if trunkopen: print("kofferbak open")
+        if not (doorlock): print("deuren van slot")
+        if driverdooropen: print("bestuurdersportier open")
+        print("soc12v ", soc12v, "status 12V", status12v)
+        print("=============")
+    time.sleep(30)
