@@ -7,7 +7,7 @@ from bluvo_main import initialise, pollcar
 from params import *  # p_parameters are read
 global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer
 
-logging.basicConfig(filename='bluvo.log', level=logging.INFO)
+#logging.basicConfig(filename='bluvo.log', level=logging.INFO)
 initialise(p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval)
 while True:
     try:  # read flag of phone in car from or whereever you want
@@ -16,7 +16,7 @@ while True:
         response = json.loads(response.text)
         phoneincarflag = response['result'][0]['Status'] == 'On'
     except:
-        logging.info('error in phone in car flag')
+        #logging.info('error in phone in car flag')
         phoneincarflag = False
     updated,afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v = pollcar(phoneincarflag)
     if updated:

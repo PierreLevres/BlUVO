@@ -3,7 +3,7 @@
 #           Author:     plips, 2020
 #
 """
-<plugin key="bluvo" name="Kia UVO and Hyundai Bluelink" author="plips" version="0.0.2">
+<plugin key="bluvo" name="Kia UVO and Hyundai Bluelink" author="plips" version="0.1.0">
     <params>
         <param field="Username" label="Email-address"           width="200px" required="true"  default="john.doe@gmail.com"                  />
         <param field="Password" label="Password"                width="200px" required="true"  default="myLittleSecret" password="true"      />
@@ -80,7 +80,7 @@ class BasePlugin:
         if p_homelocation == None:
             Domoticz.Log("Unable to parse coordinates")
             return False
-        logging.basicConfig(filename='bluvo.log', level=logging.INFO)
+        #logging.basicConfig(filename='bluvo.log', level=logging.INFO)
         initialise(p_email, p_password, p_pin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval)
         Domoticz.Heartbeat(30)
         return True
@@ -92,7 +92,9 @@ class BasePlugin:
         return True
 
     def onCommand(self, Unit, Command, Level, Hue):
-        logging.info("on command %s %s %s %s", Unit, Command, Level, Hue)
+        if Unit==9:
+            if Command == 'On': UpdateDevice(9, 1, 1)
+            else: UpdateDevice(9, 0,0)
         return True
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
