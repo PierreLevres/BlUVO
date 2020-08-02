@@ -9,7 +9,7 @@ global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherPro
 
 
 logging.basicConfig(filename='bluvo.log', level=logging.INFO)
-initialise(p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_URLphoneincar, p_forcepollinterval)
+initialise(p_runFromDomoticz,p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_URLphoneincar, p_forcepollinterval)
 while True:
     updated,afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v = pollcar()
     if updated:

@@ -10,7 +10,7 @@
         <param field="Port"     label="Pin"                     width=" 50px" required="true"  default="1234"                                />
 
         <param field="Mode1"    label="ABRP token"              width="300px" required="false" default="1234ab56-7cde-890f-a12b-3cde45678901"/>
-        <param field="Mode2"    label="ABRP Car Type"           width="200px" required="true"                                                 >  
+        <param field="Mode2"    label="ABRP Car Type"           width="150px" required="true"                                                 >
             <options>
                 <option label="Ioniq 28kWh" value="hyundai:ioniq:17:28:other"/>
                 <option label="Ioniq 38kWh" value="hyundai:ioniq:19:38:other"/>
@@ -22,9 +22,9 @@
                 <option label="eSoul 64kWh" value="kia:soul:19:64:other"/>
              </options>
 	    </param>
-	    <param field="Mode3"    label="polls every x secs" width="300px" required="true" default="600"                                   />
+	    <param field="Mode3"    label="polls every x secs" width="50px"  required="true" default="600"                                   />
         <param field="Mode4"    label="Weather api key"     width="300px" required="false" default="0987a6b54c3de210123f456578901234"    />
-        <param field="Mode5"    label="Weather provider"    width="300px" required="false"     >
+        <param field="Mode5"    label="Weather provider"    width="100px" required="false"     >
             <options>
                 <option label="DarkSky" value="DarkSky" default = "true"/>
                 <option label="OpenWeather" value="OpenWeather"/>
@@ -40,11 +40,12 @@
 </plugin>
 """
 
-import Domoticz
+import Domoticz, logging
 
 from bluvo_main import initialise, pollcar
 
 global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, URLphoneincar, forcedpolltimer
+global runfromDomoticz
 
 class BasePlugin:
     global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, URLphoneincar, forcedpolltimer
@@ -55,7 +56,7 @@ class BasePlugin:
         if (len(Devices) == 0):
             Domoticz.Device(Unit=1, Type=113, Subtype=0 , Switchtype=3 , Name="km-stand").Create()
             Domoticz.Device(Unit=2, Type=243, Subtype=31, Switchtype=0 , Name="range").Create()
-            Domoticz.Device(Unit=3, Type=244, Subtype=73, Switchtype=2 , Name="charging").Create()
+            Domoticz.Device(Unit=3, Type=244, Subtype=73, Switchtype=2 , Name="charging", CustomImage=1).Create()
             Domoticz.Device(Unit=4, TypeName="Percentage"              , Name="soc").Create()
             Domoticz.Device(Unit=5, TypeName="Percentage"              , Name="soc 12v").Create()
             Domoticz.Device(Unit=6, Type=243, Subtype=31, Switchtype=0 , Name="status 12v").Create()
@@ -79,8 +80,9 @@ class BasePlugin:
         if p_homelocation == None:
             Domoticz.Log("Unable to parse coordinates")
             return False
-        logging.basicConfig(filename='bluvo-plugin.log', level=logging.INFO)
-        initialise(p_email, p_password, p_pin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, "", p_forcepollinterval)
+        p_runFromDomoticz=True
+        logging.basicConfig(filename='bluvo.log', level=logging.INFO)
+        initialise(p_runFromDomoticz,p_email, p_password, p_pin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, "", p_forcepollinterval)
         Domoticz.Heartbeat(30)
         return True
 
