@@ -4,10 +4,33 @@
 #
 """
 <plugin key="bluvo" name="Kia UVO and Hyundai Bluelink" author="plips" version="0.1.0">
+    <description>
+        <h2>BlUvo Plugin</h2><br/>
+        A plugin for Kia UVO and Hyundai Bluelink EV's (generally MY2020 and beyond)
+        <br/>
+        ABRP cartype is mandatory, to distinguish Kia or Hyundai BlueLink operation<br/>
+        <h3>ABRP</h3><br/>
+        Your ABRP token can be found here: Settings - Car model, Click on settings next to you car, click on settings (arrow down) on the page of your car. Scroll down a bit and click on Show live data instructions and next on the blue "Link Torque"-box.
+        Click Next, Next, Next and see: "Set User Email Address to the following token". Click on the blue "Copy" box next to the token.
+        <br/>
+        If you omit your ABRP token, then no information will be sent to ABRP.
+        <br/>
+        If you want accurate weather information sent to ABRP enter either a DarkSky or OpenWeather api-key. If omitted, no weather info will be sent to ABRP.
+        <br/>
+        <h3>Draining 12V batteries</h3><br/>
+        If you poll the car all the time, when not driving or not charging, your 12V battery will be drained.
+        There is noo way to determine if you are driving or charging unless you poll the car. Either in a regular interval or upon an external signal.
+        The regular interval is set in the parameter "Poll every x seconds". Defaults to 600 (10 minutes).
+        The external signal is a watchdog on the domoticz device "FlagInCar". Car will be polled if that flag is set to 1.
+        You may achieve this eg by iOS Shortcuts: http://_your_domo_external_ip_:_domo_port_/json.htm?type=command&param=udevice&idx=_idx of "FlagInCar"_450&nvalue=1 when you plug in Apple Carplay.
+        <br/>
+        The active car polling stops when you are no longer driving or charging and the FlagInCar is not set.
+        <br/>
+    </description>
     <params>
         <param field="Username" label="Email-address"           width="200px" required="true"  default="john.doe@gmail.com"                  />
         <param field="Password" label="Password"                width="200px" required="true"  default="myLittleSecret" password="true"      />
-        <param field="Port"     label="Pin"                     width=" 50px" required="true"  default="1234"                                />
+        <param field="Port"     label="Pin"                     width=" 50px" required="true"  default="1234" password="true"                />
 
         <param field="Mode1"    label="ABRP token"              width="300px" required="false" default="1234ab56-7cde-890f-a12b-3cde45678901"/>
         <param field="Mode2"    label="ABRP Car Type"           width="150px" required="true"                                                 >
