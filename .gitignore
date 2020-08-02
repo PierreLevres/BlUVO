@@ -10,3 +10,16 @@ params.py
 .Trashes
 ehthumbs.db
 Thumbs.db
+.idea/.name
+.idea/bluvo.iml
+.idea/dictionaries/peter.xml
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+__pycache__/bluvo_lib.cpython-37.pyc
+__pycache__/bluvo_main.cpython-37.pyc
+__pycache__/generic_lib.cpython-37.pyc
+__pycache__/params.cpython-37.pyc
+bluvo.log
+plugin_old.py
