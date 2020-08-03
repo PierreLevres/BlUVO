@@ -14,7 +14,7 @@ If you want accurate weather information sent to ABRP enter either a DarkSky or 
 
 12V auxiliary battery
 If you poll the car all the time, when not driving or not charging, your 12V battery may be drained, depending on the settings of your car to charge the auxiliary battery. There is no way for the plugin to determine if you start driving or charging other than polling the car. To save draining and yet to enable polling two mechanisms are implemented:
-Forced poll interval - Polls the car actively every x seconds. Default 600 (10 minutes). You might want to change it to 999999 (once every 11 days).
+Forced poll interval - Polls the car actively every x minutes. Default 60 (1 hour). You might want to change it to 999 (once a week approx.)
 Watching an external flag, eg in domoticz. Car will be polled if that flag is set to 1. You may want to define a timer on that flag to turn it off automatically. If you use iOS you can achieve enabling and disabling this flag by iOS Shortcuts when plugin in and out of Apple Carplay. 
 The active car polling stops when you are no longer driving or charging and the FlagInCar is not set.
 
@@ -28,6 +28,6 @@ p_abrp_carmodel = 'ABRP car type, find in ABRP API'
 p_WeatherApiKey = 'api key if you want actual weather uploaded to ABRP'
 p_WeatherProvider = 'weather provider Darksky or OpenWeather if you want actual weather uploaded to ABRP'
 p_homelocation="homelatitude;homelongitude"
-p_forcepollinterval=600   # forces application to poll actively every so many seconds
+p_forcepollinterval=60   # forces application to poll actively every so many minutes
 p_URLphoneincar= 'url to return information from an external server if eg your phone is plugged into the car or unplugged'
 

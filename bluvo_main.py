@@ -71,7 +71,7 @@ def pollcar(phoneincarflag):
         # at minimum every interval minutes a true poll
         try:
             if oldpolltime =='': forcedpolltimer = True
-            else: forcedpolltimer = (float((datetime.now() - oldpolltime).total_seconds()) > float(forcepollinterval))
+            else: forcedpolltimer = (float((datetime.now() - oldpolltime).total_seconds()) > 60*float(forcepollinterval))
         except: forcedpolltimer=false
 
         if sleepmodecheck or forcedpolltimer or phoneincarflag or carstatus['engine'] or (not (carstatus['doorLock'])) or carstatus['trunkOpen'] or carstatus['evStatus']['batteryCharge']:

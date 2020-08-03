@@ -30,7 +30,7 @@
         If you poll the car all the time, when not driving or not charging, your 12V battery may be drained, depending on the settings of your car to charge the auxiliary battery.
         There is no way for the plugin to determine if you start driving or charging other than polling the car. To save draining and yet to enable polling two mechanisms are implemented:
         <ul style="list-style-type:square">
-            <li>Forced poll interval - Polls the car actively every x seconds. Default 600 (10 minutes). You might want to change it to 999999 (once every 11 days).</li>
+            <li>Forced poll interval - Polls the car actively every x minutes. Default 60 (1 hour). You might want to change it to 999 (once a week approx.).</li>
             <li>Watching the domoticz "FlagInCar"-devices. Car will be polled if that flag is set to 1. You may want to define a timer on that flag to turn it off automatically.
                 If you use iOS you can achieve enabling and disabling this flag by iOS Shortcuts when plugin in and out of Apple Carplay. In the following example 84.73.62.51:1234 is the external server and port of your Domoticz server, and 456 is the IDX of the FlagInCar device (see Domoticz devices tab): <br/>http://84.73.62.51:1234/json.htm?type=command&amp;param=udevice&amp;idx=456&amp;nvalue=1 : URL to open when you plug into Apple Carplay.
                 <br/>http://84.73.62.51:1234/json.htm?type=command&amp;param=udevice&amp;idx=456&amp;nvalue=0 : URL to open when you remove it from Apple Carplay.</li>
@@ -63,7 +63,7 @@
              </options>
         </param>
         <param field="Mode4"    label="Weather api key"     width="300px" required="false" default="0987a6b54c3de210123f456578901234"    />
-	<param field="Mode3"    label="Forced poll interval (seconds)" width="50px"  required="true" default="600"                                   />
+	<param field="Mode3"    label="Forced poll interval (minutes)" width="50px"  required="true" default="60"                                   />
         <param field="Mode6"    label="Debug"               width="75px"                                                                  >
             <options>
                 <option label="True" value="Debug"/>
