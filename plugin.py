@@ -79,7 +79,7 @@ import Domoticz, logging
 from bluvo_main import initialise, pollcar
 
 global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer
-global runfromDomoticz
+
 
 class BasePlugin:
     global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer
@@ -114,9 +114,10 @@ class BasePlugin:
         if p_homelocation == None:
             Domoticz.Log("Unable to parse coordinates")
             return False
-        #logging.basicConfig(filename='bluvo.log', level=logging.INFO)
-        initialise(p_email, p_password, p_pin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval)
-        Domoticz.Heartbeat(30)
+        logging.basicConfig(filename='/var/tmp/bluvo.log', level=logging.INFO)
+        if initialise(p_email, p_password, p_pin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval):
+            Domoticz.Heartbeat(60)
+        else: Domoticz.Log ("Initialisation failed")
         return True
 
     def onConnect(self, Connection, Status, Description):

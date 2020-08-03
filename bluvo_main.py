@@ -1,10 +1,10 @@
 from datetime import datetime
 from bluvo_lib import login, APIgetStatus, APIgetOdometer, APIgetLocation
 from generic_lib import SendABRPtelemetry, distance
+import logging
 
 def processData(carstatus, odometer, location):
     global homelocation, abrp_carmodel, abrp_token, WeatherApiKey, WeatherProvider
-    location = location['gpsDetail']
     timestamp = carstatus['time']
     heading= location['head']
     speed = location['speed']['value']
@@ -29,7 +29,7 @@ def processData(carstatus, odometer, location):
     return afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v
 
 def initialise(p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval):
-    global runFromDomoticz, email, password, pin, abrp_token, abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcepollinterval
+    global email, password, pin, abrp_token, abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcepollinterval
     # p_parameters are fed into global variables
     email = p_email
     password = p_password
@@ -45,20 +45,23 @@ def initialise(p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_Weath
     oldstatustime = ""
     oldpolltime=""
     car_brand = (abrp_carmodel.split(":", 1)[0])
-    login(car_brand, email, password, pin)
+    try:
+        login(car_brand, email, password, pin)
+        return True
+    except:
+        logging.info("Login Failed")
+        return False
 
 def pollcar(phoneincarflag):
-    global oldstatustime, oldpolltime, forcepollinterval, runFromDomoticz
+    global oldstatustime, oldpolltime, forcepollinterval
     # TODO find a way to have better poll/refresh intervals
     updated = False
     afstand= heading= speed= odometer= googlelocation= rangeleft= soc= charging= trunkopen=doorlock=driverdooropen=soc12v=status12v =0
     try:
         carstatus = APIgetStatus(False)
+        odometer = carstatus['vehicleStatusInfo']['odometer']
+        location = carstatus['vehicleStatusInfo']['vehicleLocation']
         carstatus = carstatus['vehicleStatusInfo']['vehicleStatus'] #use the vehicle status to determine stuff and shorten script
-        odometer = APIgetOdometer()
-        location = APIgetLocation()
-        updated = False
-
         if oldstatustime != carstatus['time']:
             oldstatustime = carstatus['time']
             afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v=processData(carstatus,odometer,location)  # process entire cachestring after timestamp is updated
@@ -72,17 +75,20 @@ def pollcar(phoneincarflag):
         try:
             if oldpolltime =='': forcedpolltimer = True
             else: forcedpolltimer = (float((datetime.now() - oldpolltime).total_seconds()) > 60*float(forcepollinterval))
-        except: forcedpolltimer=false
+        except: forcedpolltimer=False
 
         if sleepmodecheck or forcedpolltimer or phoneincarflag or carstatus['engine'] or (not (carstatus['doorLock'])) or carstatus['trunkOpen'] or carstatus['evStatus']['batteryCharge']:
+            logging.info("poll%s smc%s fpt%s picf%s eng%s drs%s trk%s chrg%s", datetime.now(),sleepmodecheck , forcedpolltimer , phoneincarflag , carstatus['engine'] , (not (carstatus['doorLock'])) , carstatus['trunkOpen'],carstatus['evStatus']['batteryCharge'] )
             APIgetStatus(True) #get it and process it immediately
             carstatus = APIgetStatus(False)
             carstatus = carstatus['vehicleStatusInfo']['vehicleStatus']  # use the vehicle status to determine stuff and shorten script
             odometer = APIgetOdometer()
             location = APIgetLocation()
+            location = location['gpsDetail']
             oldpolltime = datetime.now()
             oldstatustime = carstatus['time']
             updated = True
             afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v=processData(carstatus, odometer, location)  # process entire cachestring after timestamp is updated
-    except: return False,0,0,0,0,"error!",0,0,0,0,0,0,0,0
-    return updated,afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v
+    except:
+        return False, 0,     0,       0,     0,        "error!",       0,         0,   0,        0,         0,        0,              0,      0
+    return updated, afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v
