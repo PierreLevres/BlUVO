@@ -7,16 +7,19 @@
     <description>
         <h2>BlUvo Plugin</h2>
         A plugin for Kia UVO and Hyundai Bluelink EV's (generally MY2020 and beyond). Use at own risk!
-        </br>
+        <br/>
         This plugin will communicate with servers of Kia and Hyundai and through them with your car.
         Polling your car means draining battery and worst case, an empty battery.
         Educate yourself by googling "auxiliary battery drain Niro Kona Soul"
-        <br/>
+        <br/><br/>
         Email, Password, Pin are same as in you Bluelink or UVO app.
         Cartype is mandatory, to distinguish Kia or Hyundai BlueLink operation. It is also used for ABRP integration.<br/><br/>
         <h3>ABRP (optional) and weather (even more optional) </h3>
-        This plugin will send current state of charge (SoC) and local temperature to your ABRP account to have the most accurate route planning, even on the road. </br>
-        Your ABRP token can be found here: Settings - Car model, Click on settings next to you car, click on settings (arrow down) on the page of your car. Scroll down a bit and click on Show live data instructions and next on the blue "Link Torque"-box.
+        This plugin will send current state of charge (SoC) and local temperature to your ABRP account to have the most accurate route planning, even on the road. <br/>
+        Your ABRP token can be found here: Settings - Car model, 
+	Click on settings next to you car, 
+	click on settings (arrow down) on the page of your car. 
+	Scroll down a bit and click on Show live data instructions and next on the blue "Link Torque"-box.
         Click Next, Next, Next and see: "Set User Email Address to the following token". Click on the blue "Copy" box next to the token.
         <br/>
         If you omit your ABRP token, then no information will be sent to ABRP.
@@ -25,12 +28,12 @@
         <br/><br/>
         <h3>12V auxiliary battery</h3>
         If you poll the car all the time, when not driving or not charging, your 12V battery may be drained, depending on the settings of your car to charge the auxiliary battery.
-        There is no way for the plugin to determine if you start driving or charging other than polling the car. To save draining two mechanisms are implemented:
+        There is no way for the plugin to determine if you start driving or charging other than polling the car. To save draining and yet to enable polling two mechanisms are implemented:
         <ul style="list-style-type:square">
-            <li>Forced interval - Set as a parameter (poll every x seconds). Default 600 (10 minutes). You might want to change it to 999999.</li>
-            <li>The external signal is a watchdog on the domoticz device "FlagInCar". Car will be polled if that flag is set to 1. You may want to define a timer on that flag to turn it off automatically.
-                You may achieve this by iOS Shortcuts: http://_your_domo_external_ip_:_domo_port_/json.htm?type=command&param=udevice&idx=_idx of "FlagInCar"_&nvalue=1 when you plug in Apple Carplay.
-                http://_your_domo_external_ip_:_domo_port_/json.htm?type=command&param=udevice&idx=_idx of "FlagInCar"_&nvalue=0 would be the command to be send if you remove it from Apple Carplay.</li>
+            <li>Forced poll interval - Polls the car actively every x seconds. Default 600 (10 minutes). You might want to change it to 999999 (once every 11 days).</li>
+            <li>Watching the domoticz "FlagInCar"-devices. Car will be polled if that flag is set to 1. You may want to define a timer on that flag to turn it off automatically.
+                If you use iOS you can achieve enabling and disabling this flag by iOS Shortcuts when plugin in and out of Apple Carplay. In the following example 84.73.62.51:1234 is the external server and port of your Domoticz server, and 456 is the IDX of the FlagInCar device (see Domoticz devices tab): <br/>http://84.73.62.51:1234/json.htm?type=command&amp;param=udevice&amp;idx=456&amp;nvalue=1 : URL to open when you plug into Apple Carplay.
+                <br/>http://84.73.62.51:1234/json.htm?type=command&amp;param=udevice&amp;idx=456&amp;nvalue=0 : URL to open when you remove it from Apple Carplay.</li>
         </ul>
         The active car polling stops when you are no longer driving or charging and the FlagInCar is not set.
         <br/>
@@ -40,7 +43,7 @@
         <param field="Password" label="Password"                width="200px" required="true"  default="myLittleSecret" password="true"      />
         <param field="Port"     label="Pin"                     width=" 50px" required="true"  default="1234" password="true"                />
 
-        <param field="Mode2"    label="Car Type"                width="150px" required="true"                                                 >
+        <param field="Mode2"    label="Car Type"                width="125px" required="true"                                                 >
             <options>
                 <option label="Ioniq 28kWh" value="hyundai:ioniq:17:28:other"/>
                 <option label="Ioniq 38kWh" value="hyundai:ioniq:19:38:other"/>
@@ -53,14 +56,14 @@
              </options>
 	    </param>
         <param field="Mode1"    label="ABRP token"              width="300px" required="false" default="1234ab56-7cde-890f-a12b-3cde45678901"/>
-        <param field="Mode4"    label="Weather api key"     width="300px" required="false" default="0987a6b54c3de210123f456578901234"    />
-        <param field="Mode5"    label="Weather provider"    width="100px" required="false"     >
+        <param field="Mode5"    label="Weather provider"    width="150px" required="false"     >
             <options>
                 <option label="DarkSky" value="DarkSky" default = "true"/>
                 <option label="OpenWeather" value="OpenWeather"/>
              </options>
         </param>
-	    <param field="Mode3"    label="Forced poll interval (secs)" width="50px"  required="true" default="600"                                   />
+        <param field="Mode4"    label="Weather api key"     width="300px" required="false" default="0987a6b54c3de210123f456578901234"    />
+	<param field="Mode3"    label="Forced poll interval (seconds)" width="50px"  required="true" default="600"                                   />
         <param field="Mode6"    label="Debug"               width="75px"                                                                  >
             <options>
                 <option label="True" value="Debug"/>
