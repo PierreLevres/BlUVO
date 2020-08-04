@@ -20,7 +20,14 @@ if initialise(p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_Weathe
         except:
             logging.info('error in phone in car flag')
             phoneincarflag = False
-        updated,afstand,heading,speed,odometer,googlelocation,rangeleft,soc,charging,trunkopen,doorlock,driverdooropen,soc12v,status12v = pollcar(phoneincarflag)
+        phoneincarflag, updated, afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = pollcar(phoneincarflag)
+        # TODO reset phoneincarflag to off
+        #if not phoneincarflag:
+        #    session = requests.Session()
+        #    response = session.get(p_URLphoneincar)
+        #   response = json.loads(response.text)
+        #    phoneincarflag = response['result'][0]['Status'] == 'On'
+
         if updated:
             print('afstand van huis, rijrichting, snelheid en km-stand: ', afstand, ' / ', heading, '/', speed, '/',odometer)
             print(googlelocation)

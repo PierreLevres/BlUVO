@@ -75,7 +75,7 @@
 """
 
 import Domoticz, logging
-
+from datetime import datetime
 from bluvo_main import initialise, pollcar
 
 global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer
@@ -90,13 +90,14 @@ class BasePlugin:
         if (len(Devices) == 0):
             Domoticz.Device(Unit=1, Type=113, Subtype=0 , Switchtype=3 , Name="km-stand").Create()
             Domoticz.Device(Unit=2, Type=243, Subtype=31, Switchtype=0 , Name="range").Create()
-            Domoticz.Device(Unit=3, Type=244, Subtype=73, Switchtype=2 , Name="charging", CustomImage=1).Create()
+            Domoticz.Device(Unit=3, Type=244, Subtype=73, Switchtype=2 , Name="charging").Create()
             Domoticz.Device(Unit=4, TypeName="Percentage"              , Name="soc").Create()
             Domoticz.Device(Unit=5, TypeName="Percentage"              , Name="soc 12v").Create()
             Domoticz.Device(Unit=6, Type=243, Subtype=31, Switchtype=0 , Name="status 12v").Create()
             Domoticz.Device(Unit=7, Type=244, Subtype=73, Switchtype=11, Name="kofferbak open").Create()
             Domoticz.Device(Unit=8, Type=243, Subtype=31, Switchtype=0 , Name="afstand van huis").Create()
             Domoticz.Device(Unit=9, Type=244, Subtype=73, Switchtype=0 , Name="FlaginCar").Create()
+            # TODO Create a scheme for turning off device 9 regularly (eg every 2 hours)
             Domoticz.Log("Devices created.")
             if Parameters["Mode6"] == "Debug":
                 Domoticz.Debugging(1)
@@ -114,9 +115,9 @@ class BasePlugin:
         if p_homelocation == None:
             Domoticz.Log("Unable to parse coordinates")
             return False
-        logging.basicConfig(filename='/var/tmp/bluvo.log', level=logging.INFO)
+        logging.basicConfig(filename='bluvo.log', level=logging.INFO)
         if initialise(p_email, p_password, p_pin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval):
-            Domoticz.Heartbeat(60)
+            Domoticz.Heartbeat(30)
         else: Domoticz.Log ("Initialisation failed")
         return True
 
@@ -129,16 +130,23 @@ class BasePlugin:
     def onCommand(self, Unit, Command, Level, Hue):
         if Unit==9:
             if Command == 'On': UpdateDevice(9, 1, 1)
-            else: UpdateDevice(9, 0,0)
+            else: UpdateDevice(9, 0, 0)
         return True
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         return True
 
     def onHeartbeat(self):
-        phoneincar = (Devices[9].nValue==1)
-        updated,afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = pollcar(phoneincar)
+        #logging.info("entering on heatbeat %s",datetime.now())
+        phoneincarflag = (Devices[9].nValue==1)
+        #logging.info("about to enter poll procedure phone in car? %s",phoneincarflag)
+        phoneincarflag, updated, afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = pollcar(phoneincarflag)
+        #logging.info("exited poll procedure, phone in car? %s",phoneincarflag)
+        if phoneincarflag == False:
+            #logging.info("about to reset device phoneincarflag")
+            UpdateDevice(9, 0, 0)
         if updated:
+            logging.info("about to update devices")
             UpdateDevice(1, 0, odometer)  # kmstand
             UpdateDevice(2, 0, rangeleft)  # kmstand
             UpdateDevice(3, charging, charging)  # charging
@@ -146,9 +154,12 @@ class BasePlugin:
             UpdateDevice(5, soc12v, soc12v)  # soc12v
             UpdateDevice(6, status12v, status12v)  # status 12v
             UpdateDevice(7, trunkopen, trunkopen)  # kofferbak
+            #logging.info("devices 1-7 updates, now renameing 8")
             if str(Devices[8].sValue) != str(afstand) or Devices[8].Name != googlelocation:
                 Devices[8].Update(nValue=0, sValue=str(afstand), Name=googlelocation)
                 Domoticz.Log("Update " +  str(afstand) + "' (" + Devices[8].Name + ")")
+            #logging.info("device 8 renamed")
+
         return
 
     def onDisconnect(self, Connection):
