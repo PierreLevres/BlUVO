@@ -66,8 +66,11 @@
 	<param field="Mode3"    label="Forced poll interval (minutes)" width="50px"  required="true" default="60"                                   />
         <param field="Mode6"    label="Debug"               width="75px"                                                                  >
             <options>
-                <option label="True" value="Debug"/>
-                <option label="False" value="Normal"  default="true" />
+                <option label="Debug" value="Debug"/>
+                <option label="Info" value="Info"/>
+                <option label="Warning" value="Warning"/>
+                <option label="Error" value="Error" default = "true"/>
+                <option label="Critical" value="Critical"/>
             </options>
         </param>
     </params>
@@ -78,15 +81,26 @@ import Domoticz, logging
 from datetime import datetime
 from bluvo_main import initialise, pollcar
 
-global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer
+global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer, logger
 
 
 class BasePlugin:
-    global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer
+    global email, password, pin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer, logger
     def onStart(self):
+        #logger = logging.getLogger('bluvo')
         if Parameters["Mode6"] == "Debug":
             Domoticz.Debugging(1)
             DumpConfigToLog()
+            logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='bluvo.log',
+                                level=logging.DEBUG)
+        else:
+            Domoticz.Debugging(0)
+            if Parameters["Mode6"] == "Info": logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='bluvo.log', level=logging.INFO)
+            elif Parameters["Mode6"] == "Warning": logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='bluvo.log', level=logging.WARNING)
+            else: logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='bluvo.log', level=logging.ERROR)
+
+        logging.info('started plugin')
+
         if (len(Devices) == 0):
             Domoticz.Device(Unit=1, Type=113, Subtype=0 , Switchtype=3 , Name="km-stand").Create()
             Domoticz.Device(Unit=2, Type=243, Subtype=31, Switchtype=0 , Name="range").Create()
@@ -115,7 +129,6 @@ class BasePlugin:
         if p_homelocation == None:
             Domoticz.Log("Unable to parse coordinates")
             return False
-        logging.basicConfig(filename='bluvo.log', level=logging.INFO)
         if initialise(p_email, p_password, p_pin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval):
             Domoticz.Heartbeat(30)
         else: Domoticz.Log ("Initialisation failed")
@@ -137,16 +150,16 @@ class BasePlugin:
         return True
 
     def onHeartbeat(self):
-        #logging.info("entering on heatbeat %s",datetime.now())
-        phoneincarflag = (Devices[9].nValue==1)
-        #logging.info("about to enter poll procedure phone in car? %s",phoneincarflag)
-        phoneincarflag, updated, afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = pollcar(phoneincarflag)
-        #logging.info("exited poll procedure, phone in car? %s",phoneincarflag)
-        if phoneincarflag == False:
-            #logging.info("about to reset device phoneincarflag")
+        logging.debug("entering on heatbeat")
+        oldphoneincarflag = (Devices[9].nValue==1)
+        logging.debug("about to enter poll procedure phone in car? %s",oldphoneincarflag)
+        phoneincarflag, updated, afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = pollcar(oldphoneincarflag)
+        #if oldphoneincarflag != phoneincarflag: logging.info("exited poll procedure, phone in car? was %s and is %s", oldphoneincarflag, phoneincarflag)
+        if oldphoneincarflag and not( phoneincarflag):
+            logging.debug("about to reset device phoneincarflag")
             UpdateDevice(9, 0, 0)
         if updated:
-            logging.info("about to update devices")
+            logging.debug("about to update devices")
             UpdateDevice(1, 0, odometer)  # kmstand
             UpdateDevice(2, 0, rangeleft)  # kmstand
             UpdateDevice(3, charging, charging)  # charging
@@ -154,11 +167,11 @@ class BasePlugin:
             UpdateDevice(5, soc12v, soc12v)  # soc12v
             UpdateDevice(6, status12v, status12v)  # status 12v
             UpdateDevice(7, trunkopen, trunkopen)  # kofferbak
-            #logging.info("devices 1-7 updates, now renameing 8")
+            logging.debug("devices 1-7 updates, now renameing 8")
             if str(Devices[8].sValue) != str(afstand) or Devices[8].Name != googlelocation:
                 Devices[8].Update(nValue=0, sValue=str(afstand), Name=googlelocation)
                 Domoticz.Log("Update " +  str(afstand) + "' (" + Devices[8].Name + ")")
-            #logging.info("device 8 renamed")
+            logging.debug("device 8 renamed")
 
         return
 

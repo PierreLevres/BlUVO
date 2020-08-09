@@ -23,3 +23,4 @@ __pycache__/generic_lib.cpython-37.pyc
 __pycache__/params.cpython-37.pyc
 bluvo.log
 plugin_old.py
+publish.sh

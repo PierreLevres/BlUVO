@@ -18,7 +18,7 @@ if initialise(p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_Weathe
             response = json.loads(response.text)
             phoneincarflag = response['result'][0]['Status'] == 'On'
         except:
-            logging.info('error in phone in car flag')
+            logging.error('error in phone in car flag')
             phoneincarflag = False
         phoneincarflag, updated, afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = pollcar(phoneincarflag)
         # TODO reset phoneincarflag to off
@@ -40,4 +40,4 @@ if initialise(p_email, p_password, p_pin, p_abrp_token,p_abrp_carmodel, p_Weathe
             print("=============")
         time.sleep(60)
 else:
-    logging.info("initialisation failed")
+    logging.error("initialisation failed")

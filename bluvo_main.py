@@ -6,7 +6,7 @@ import logging
 
 def processData(carstatus, location):
     try:
-        #logging.info("enter procesdata")
+        logging.debug("enter procesdata")
         global homelocation, abrp_carmodel, abrp_token, WeatherApiKey, WeatherProvider
         heading = location['head']
         speed = location['speed']['value']
@@ -20,22 +20,22 @@ def processData(carstatus, location):
         status12v = carstatus['battery']['batState']
         latitude = location['coord']['lat']
         longitude = location['coord']['lon']
-        #logging.info("about to do something with home location %s", homelocation)
+        logging.debug("about to do something with home location %s", homelocation)
         loc = homelocation.split(";")
         homelat = float(loc[0])
         homelon = float(loc[1])
-        #logging.info("about to calculate distance to home location %s", homelocation)
+        logging.debug("about to calculate distance to home location %s", homelocation)
         afstand = round(distance(latitude, longitude, float(homelat), float(homelon)), 1)
         googlelocation = '<a href="http://www.google.com/maps/search/?api=1&query=' + str(latitude) + ',' + str(
             longitude) + '">eNiro - Afstand van huis</a>'
-        #logging.info("link to google maps %s", googlelocation)
+        logging.debug("link to google maps %s", googlelocation)
         try:
-            #logging.info("about to send info to ABRP")
+            logging.debug("about to send info to ABRP")
             SendABRPtelemetry(soc, speed, latitude, longitude, charging, abrp_carmodel, abrp_token, WeatherApiKey,
                               WeatherProvider)
-            #logging.info("i sent info to ABRP")
-        except: logging.info("something went wrong in ABRP procedure")
-    except: logging.info("something went wrong in process data procedure")
+            logging.debug("i sent info to ABRP")
+        except: logging.error("something went wrong in ABRP procedure")
+    except: logging.error("something went wrong in process data procedure")
     return afstand, heading, speed, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v
 
 
@@ -61,7 +61,7 @@ def initialise(p_email, p_password, p_pin, p_abrp_token, p_abrp_carmodel, p_Weat
         login(car_brand, email, password, pin)
         return True
     except:
-        logging.info("Login Failed")
+        logging.error("Login Failed")
         return False
 
 
@@ -71,66 +71,67 @@ def pollcar(phoneincarflag):
     updated = False
     afstand = heading = speed = odometer = googlelocation = rangeleft = soc = charging = trunkopen = doorlock = driverdooropen = soc12v = status12v = 0
     try:
-        #logging.info('entering poll loop at %s', datetime.now())
+        logging.debug('entering poll loop')
         carstatus = APIgetStatus(False)
         odometer = carstatus['vehicleStatusInfo']['odometer']['value']
         location = carstatus['vehicleStatusInfo']['vehicleLocation']
         carstatus = carstatus['vehicleStatusInfo']['vehicleStatus']
+        logging.debug('information in cache when entering pollloop: engine: %s; trunk: %s; doorunlock %s; charging %s; odometer %s; location %s', carstatus['engine'], carstatus['trunkOpen'], carstatus['doorLock'],carstatus['evStatus']['batteryCharge'], odometer, location['coord'])
         # use the vehicle status to determine stuff and shorten script
         if oldstatustime != carstatus['time']:
+            logging.debug('new timestamp of cache data (was %s now %s), about to process it', oldstatustime, carstatus['time'])
             oldstatustime = carstatus['time']
-            logging.info('got a new timestamp of cache data %s, about to process it', oldstatustime)
             afstand, heading, speed, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = processData(carstatus, location)
             updated = True
+
         try:
             sleepmodecheck = carstatus['sleepModeCheck']
+            #sleepmodecheck = False  #omit this, there is no use in polling if the engine is off...
         except KeyError:
             sleepmodecheck = False  # sleep mode check is not there...
 
         # at minimum every interval minutes a true poll
         try:
-            if oldpolltime == '':
-                forcedpolltimer = True
-            else:
-                forcedpolltimer = (
-                            float((datetime.now() - oldpolltime).total_seconds()) > 60 * float(forcepollinterval))
+            forcedpolltimer = True if oldpolltime == '' else (float((datetime.now() - oldpolltime).total_seconds()) > 60 * float(forcepollinterval))
         except:
             forcedpolltimer = False
 
         if sleepmodecheck or forcedpolltimer or phoneincarflag or carstatus['engine'] or (not (carstatus['doorLock'])) or carstatus['trunkOpen'] or carstatus['evStatus']['batteryCharge']:
-            strings = ["sleepmodecheck", "forcedpolltimer", "phoneincarflag", "engine", 'doorLock','trunkOpen', 'charging']
+            strings = ["sleepmodecheck", "forcedpolltimer", "phoneincarflag", "engine", 'doorunLock','trunkOpen', 'charging']
             conditions = [sleepmodecheck,forcedpolltimer, phoneincarflag, carstatus['engine'], (not (carstatus['doorLock'])),
                          carstatus['trunkOpen'], carstatus['evStatus']['batteryCharge']]
             truecond = ''
             for i in range(len(strings)):
                 if (conditions[i]==True): truecond = truecond + " " + strings[i]
-            logging.info("at %s conditions for a reload were true %s", datetime.now(), truecond)
+            logging.info("conditions for a reload were true %s", truecond)
 
             APIgetStatus(True)  # get it and process it immediately
+            logging.debug('information after refresh engine: %s; trunk: %s; doorunlock %s; charging %s',carstatus['engine'],carstatus['trunkOpen'],carstatus['doorLock'],carstatus['evStatus']['batteryCharge'])
             carstatus = APIgetStatus(False)
-            odometer = carstatus['vehicleStatusInfo']['odometer']['value']
+            freshodometer = carstatus['vehicleStatusInfo']['odometer']['value']
             carstatus = carstatus['vehicleStatusInfo']['vehicleStatus']
-            logging.info('got a fresh carstatus')
-
-            freshlocation = APIgetLocation()
-            freshlocation = freshlocation['gpsDetail']
-            logging.info('got a fresh location')
-
+            logging.info('information in cache ==> engine: %s; trunk: %s; doorlock %s; charging %s; odometer %s',carstatus['engine'],carstatus['trunkOpen'],carstatus['doorLock'],carstatus['evStatus']['batteryCharge'],freshodometer)
+            # when enging is running or odometer changed ask for a location update
+            logging.info( "odometer before refresh %s and after %s", odometer, freshodometer)
+            if carstatus['engine'] or (freshodometer != odometer):
+                freshlocation = APIgetLocation()
+                freshlocation = freshlocation['gpsDetail']
+                logging.info('got a fresh location %s',freshlocation['coord'])
+            else:
+                freshlocation = location
+            odometer = freshodometer
             oldpolltime = datetime.now()
             oldstatustime = carstatus['time']
             updated = True
-            #logging.info('about to enter process data')
+            logging.debug('about to enter process data')
             afstand, heading, speed, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = processData(carstatus, freshlocation)
-            #logging.info('exited process data')
+            logging.debug('exited process data')
             # process entire cachestring after timestamp is updated
-            # TODO if the Engine is running then phone in carflag can be set to False, else leave unchanged
             if carstatus['engine'] == True:
-                #logging.info('since engine is running, turn off the phone in car flag')
+                logging.debug('since engine is running, turn off the phone in car flag')
                 phoneincarflag = False
-            if not (location['coord'] == freshlocation['coord']):
-                logging.info('%s location when entering worker ',location['coord'])
-                logging.info('%s locatie after location-refresh-call ', freshlocation['coord'])
     except:
+        logging.error('error opgetreden')
         return phoneincarflag, False, 0, 0, 0, 0, "error!", 0, 0, 0, 0, 0, 0, 0, 0
 
     return phoneincarflag, updated, afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v
