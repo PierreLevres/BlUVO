@@ -1,5 +1,8 @@
 #my personal parameter file
 params.py
+bluvo.log
+plugin_old.py
+publish.sh
 
 # OS generated files #
 ######################
@@ -21,6 +24,3 @@ __pycache__/bluvo_lib.cpython-37.pyc
 __pycache__/bluvo_main.cpython-37.pyc
 __pycache__/generic_lib.cpython-37.pyc
 __pycache__/params.cpython-37.pyc
-bluvo.log
-plugin_old.py
-publish.sh
