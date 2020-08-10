@@ -26,7 +26,7 @@ def GetLocationTemperature(WeatherApiKey, WeatherProvider, lat, lon):
             return response['currently']['temperature']
         else: return False
     elif WeatherProvider == 'OpenWeather':
-        getWeatherURL = 'https://api.openweathermap.org/data/2.5/weather?lat=' + str(lat) + '&lon=' + str(lon) + '&appid=' + WeatherApiKey + '&units=metric'
+        getWeatherURL = 'https://api.openweathermap.org/data/2.5/weather?lat=' + str(lat) + '&lon=' + str(lon) + '&appid=' + WeatherApiKey + '&type=accurate&units=metric'
         response = requests.get(getWeatherURL)
         if response.status_code == 200:
             response = json.loads(response.text)
