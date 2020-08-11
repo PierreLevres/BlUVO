@@ -76,7 +76,7 @@ def pollcar(phoneincarflag):
         odometer = carstatus['vehicleStatusInfo']['odometer']['value']
         location = carstatus['vehicleStatusInfo']['vehicleLocation']
         carstatus = carstatus['vehicleStatusInfo']['vehicleStatus']
-        logging.debug('information in cache when entering pollloop: engine: %s; trunk: %s; doorunlock %s; charging %s; odometer %s; location %s', carstatus['engine'], carstatus['trunkOpen'], carstatus['doorLock'],carstatus['evStatus']['batteryCharge'], odometer, location['coord'])
+        logging.debug('information in cache when entering pollloop: engine: %s; trunk: %s; doorunlock %s; charging %s; odometer %s; location %s', carstatus['engine'], carstatus['trunkOpen'], not(carstatus['doorLock']),carstatus['evStatus']['batteryCharge'], odometer, location['coord'])
         # use the vehicle status to determine stuff and shorten script
         if oldstatustime != carstatus['time']:
             logging.debug('new timestamp of cache data (was %s now %s), about to process it', oldstatustime, carstatus['time'])
@@ -97,20 +97,22 @@ def pollcar(phoneincarflag):
             forcedpolltimer = False
 
         if sleepmodecheck or forcedpolltimer or phoneincarflag or carstatus['engine'] or (not (carstatus['doorLock'])) or carstatus['trunkOpen'] or carstatus['evStatus']['batteryCharge']:
-            strings = ["sleepmodecheck", "forcedpolltimer", "phoneincarflag", "engine", 'doorunLock','trunkOpen', 'charging']
+            strings = ["sleepmodecheck", "forcedpolltimer", "phoneincarflag", "engine", 'doorunlock','trunkOpen', 'charging']
             conditions = [sleepmodecheck,forcedpolltimer, phoneincarflag, carstatus['engine'], (not (carstatus['doorLock'])),
                          carstatus['trunkOpen'], carstatus['evStatus']['batteryCharge']]
             truecond = ''
             for i in range(len(strings)):
                 if (conditions[i]==True): truecond = truecond + " " + strings[i]
+            logging.info("====================================")
             logging.info("conditions for a reload were true %s", truecond)
+            logging.info("------------------------------------")
 
             APIgetStatus(True)  # get it and process it immediately
-            logging.debug('information after refresh engine: %s; trunk: %s; doorunlock %s; charging %s',carstatus['engine'],carstatus['trunkOpen'],carstatus['doorLock'],carstatus['evStatus']['batteryCharge'])
+            logging.debug('information after refresh engine: %s; trunk: %s; doorunlock %s; charging %s',carstatus['engine'],carstatus['trunkOpen'],not(carstatus['doorLock']),carstatus['evStatus']['batteryCharge'])
             carstatus = APIgetStatus(False)
             freshodometer = carstatus['vehicleStatusInfo']['odometer']['value']
             carstatus = carstatus['vehicleStatusInfo']['vehicleStatus']
-            logging.info('information in cache ==> engine: %s; trunk: %s; doorlock %s; charging %s; odometer %s',carstatus['engine'],carstatus['trunkOpen'],carstatus['doorLock'],carstatus['evStatus']['batteryCharge'],freshodometer)
+            logging.info('information in cache ==> engine: %s; trunk: %s; doorunlock %s; charging %s; odometer %s',carstatus['engine'],carstatus['trunkOpen'],not(carstatus['doorLock']),carstatus['evStatus']['batteryCharge'],freshodometer)
             # when enging is running or odometer changed ask for a location update
             logging.info( "odometer before refresh %s and after %s", odometer, freshodometer)
             if carstatus['engine'] or (freshodometer != odometer):
@@ -131,7 +133,7 @@ def pollcar(phoneincarflag):
                 logging.debug('since engine is running, turn off the phone in car flag')
                 phoneincarflag = False
     except:
-        logging.error('error opgetreden')
+        logging.error('error somewhere')
         return phoneincarflag, False, 0, 0, 0, 0, "error!", 0, 0, 0, 0, 0, 0, 0, 0
 
     return phoneincarflag, updated, afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v
