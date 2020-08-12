@@ -69,10 +69,13 @@ def pollcar(phoneincarflag):
     global oldstatustime, oldpolltime, forcepollinterval
     # TODO find a way to have better poll/refresh intervals
     updated = False
+    BP = ""  # breakpoint
     afstand = heading = speed = odometer = googlelocation = rangeleft = soc = charging = trunkopen = doorlock = driverdooropen = soc12v = status12v = 0
     try:
         logging.debug('entering poll loop')
+        BP = "Before get from cache1"
         carstatus = APIgetStatus(False)
+        BP = "After get from cache1"
         odometer = carstatus['vehicleStatusInfo']['odometer']['value']
         location = carstatus['vehicleStatusInfo']['vehicleLocation']
         carstatus = carstatus['vehicleStatusInfo']['vehicleStatus']
@@ -81,7 +84,9 @@ def pollcar(phoneincarflag):
         if oldstatustime != carstatus['time']:
             logging.debug('new timestamp of cache data (was %s now %s), about to process it', oldstatustime, carstatus['time'])
             oldstatustime = carstatus['time']
+            BP = "Before process data 1"
             afstand, heading, speed, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = processData(carstatus, location)
+            BP = "After process data 1"
             updated = True
 
         try:
@@ -96,27 +101,32 @@ def pollcar(phoneincarflag):
         except:
             forcedpolltimer = False
 
-        if sleepmodecheck or forcedpolltimer or phoneincarflag or carstatus['engine'] or (not (carstatus['doorLock'])) or carstatus['trunkOpen'] or carstatus['evStatus']['batteryCharge']:
-            strings = ["sleepmodecheck", "forcedpolltimer", "phoneincarflag", "engine", 'doorunlock','trunkOpen', 'charging']
-            conditions = [sleepmodecheck,forcedpolltimer, phoneincarflag, carstatus['engine'], (not (carstatus['doorLock'])),
-                         carstatus['trunkOpen'], carstatus['evStatus']['batteryCharge']]
+        BP = "Before checking refresh conditions"
+        if sleepmodecheck or forcedpolltimer or phoneincarflag or carstatus['engine'] or carstatus['evStatus']['batteryCharge']:
+            strings = ["sleepmodecheck", "forcedpolltimer", "phoneincarflag", "engine", 'charging']
+            conditions = [sleepmodecheck,forcedpolltimer, phoneincarflag, carstatus['engine'], carstatus['evStatus']['batteryCharge']]
             truecond = ''
             for i in range(len(strings)):
                 if (conditions[i]==True): truecond = truecond + " " + strings[i]
             logging.info("====================================")
             logging.info("conditions for a reload were true %s", truecond)
             logging.info("------------------------------------")
-
+            BP = "Before carstatus refresh"
             APIgetStatus(True)  # get it and process it immediately
+            BP = "After carstatus refresh"
             logging.debug('information after refresh engine: %s; trunk: %s; doorunlock %s; charging %s',carstatus['engine'],carstatus['trunkOpen'],not(carstatus['doorLock']),carstatus['evStatus']['batteryCharge'])
+            BP = "Before get from cache2"
             carstatus = APIgetStatus(False)
+            BP = "After get from cache2"
             freshodometer = carstatus['vehicleStatusInfo']['odometer']['value']
             carstatus = carstatus['vehicleStatusInfo']['vehicleStatus']
             logging.info('information in cache ==> engine: %s; trunk: %s; doorunlock %s; charging %s; odometer %s',carstatus['engine'],carstatus['trunkOpen'],not(carstatus['doorLock']),carstatus['evStatus']['batteryCharge'],freshodometer)
             # when enging is running or odometer changed ask for a location update
             logging.info( "odometer before refresh %s and after %s", odometer, freshodometer)
             if carstatus['engine'] or (freshodometer != odometer):
+                BP = "Before location refresh"
                 freshlocation = APIgetLocation()
+                BP = "After location refresh"
                 freshlocation = freshlocation['gpsDetail']
                 logging.info('got a fresh location %s',freshlocation['coord'])
             else:
@@ -125,15 +135,15 @@ def pollcar(phoneincarflag):
             oldpolltime = datetime.now()
             oldstatustime = carstatus['time']
             updated = True
-            logging.debug('about to enter process data')
+            BP = "Before process data 2"
             afstand, heading, speed, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = processData(carstatus, freshlocation)
-            logging.debug('exited process data')
+            BP = "After process data 2"
             # process entire cachestring after timestamp is updated
             if carstatus['engine'] == True:
                 logging.debug('since engine is running, turn off the phone in car flag')
                 phoneincarflag = False
     except:
-        logging.error('error somewhere')
+        logging.error('error somewhere, breakpoint: %s',BP)
         return phoneincarflag, False, 0, 0, 0, 0, "error!", 0, 0, 0, 0, 0, 0, 0, 0
 
     return phoneincarflag, updated, afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v
