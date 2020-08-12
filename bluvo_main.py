@@ -144,6 +144,7 @@ def pollcar(phoneincarflag):
                 phoneincarflag = False
     except:
         logging.error('error somewhere, breakpoint: %s',BP)
+        oldpolltime = datetime.now()
         return phoneincarflag, False, 0, 0, 0, 0, "error!", 0, 0, 0, 0, 0, 0, 0, 0
 
     return phoneincarflag, updated, afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v
