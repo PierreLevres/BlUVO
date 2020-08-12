@@ -1,8 +1,15 @@
 #!/bin/bash
 # attact the directory on the pi
-#mount -t cifs //pi@RPI._smb._tcp.local/pi /Volumes/pi
+FILE=~/pi/Domoticz/plugins/bluvo/plugin.py
+if [ -f "$FILE" ]; then
+    echo "al gemount"
+else
+  echo -n Password voor de pi:
+  read -s password
+  mount -t smbfs "//pi:$password@RPI._smb._tcp.local/pi" ~/pi
+fi
 
-cd /Volumes/pi/Domoticz/plugins/bluvo/
+cd ~/pi/Domoticz/plugins/bluvo/
 
 if [[ plugin.py -ot /Users/peter/Documents/GitHub/bluvo/plugin.py ]];
 then
@@ -24,10 +31,10 @@ do
   fi
 done
 if [[ "$RESTART" == "True" ]]; then
-  Echo "Restart Domoticz"
+  Echo "Please restart Domoticz"
 fi
 if [[ "$RELOAD" == "True" ]]; then
-  Echo "Restart Hardware"
+  Echo "Please restart Hardware"
 fi
 
 
