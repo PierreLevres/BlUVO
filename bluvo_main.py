@@ -121,7 +121,7 @@ def pollcar(phoneincarflag):
             freshodometer = carstatus['vehicleStatusInfo']['odometer']['value']
             carstatus = carstatus['vehicleStatusInfo']['vehicleStatus']
             logging.info('information in cache ==> engine: %s; trunk: %s; doorunlock %s; charging %s; odometer %s',carstatus['engine'],carstatus['trunkOpen'],not(carstatus['doorLock']),carstatus['evStatus']['batteryCharge'],freshodometer)
-            # when enging is running or odometer changed ask for a location update
+            # when engine is running or odometer changed ask for a location update
             logging.info( "odometer before refresh %s and after %s", odometer, freshodometer)
             if carstatus['engine'] or (freshodometer != odometer):
                 BP = "Before location refresh"
