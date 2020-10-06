@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 global ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL
 global controlToken, controlTokenExpiresAt
 global accessToken, accessTokenExpiresAt
-global deviceId, vehicleId
+global deviceId, vehicleId, cookies
 global email, password, pin
 
 
@@ -118,7 +118,7 @@ def enter_pin():
 def login(car_brand, email2, password2, pin2, vin2):
     global controlToken, controlTokenExpiresAt
     global accessToken, accessTokenExpiresAt, refreshToken
-    global deviceId, vehicleId
+    global deviceId, vehicleId, cookies
     global email, password, pin, vin
     email = email2
     password = password2
@@ -562,20 +562,21 @@ def api_set_chargeschedule(Schedule1, Schedule2, TempSet, ChargeSchedule):
 def api_set_chargelimits(LimitFast = 80, LimitSlow = 100):
     global BaseURL, vehicleId, controlToken, deviceId
     if not check_control_token(): return False
-    data = {}
     url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/charge/target'
     headers = {
         'Authorization': controlToken,
         'ccsp-device-id': deviceId,
-        'Content-Type': 'application/json'
+        'Connection': 'keep-alive',
+        'offset': '2',
+        'Content-Type': 'application/json;charset=UTF-8',
+        'Accept-Encoding': 'gzip, deflate',
+        'User-Agent': 'okhttp/3.10.0'
     }
-    data['targetSOClist'][0] = {'targetSOClevel': LimitFast, 'plugType': 0}
-    data['targetSOClist'][1] = {'targetSOClevel': LimitSlow, 'plugType': 1}
-    response = requests.post(url, json=data, headers=headers)
-    if response.status_code == 200:
-        return True
+    data = {'targetSOClist' : [{'plugType': 0,'targetSOClevel': int(LimitFast) },{'plugType': 1,'targetSOClevel': int(LimitSlow)}]}
+    response = requests.post(url, json=data, headers=headers, cookies=cookies)
+    if response.status_code == 200: return True
     else:
-        api_error('NOK setting charge limits. Error: ' + str(response.status_code))
+        api_error('NOK setting charge limits. Error: ' + response.text['resMsg']+str(response.status_code))
         return False
 
 def api_set_navigation(poiInfoList):
