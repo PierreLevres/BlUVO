@@ -2,6 +2,7 @@
  
 BlUvo Plugin
 An application or Domoticz plugin for Kia UVO and Hyundai Bluelink EV's (generally MY2020 and beyond). Use at own risk!
+
 This plugin will communicate with servers of Kia and Hyundai and through them with your car. Polling your car means draining battery and worst case, an empty battery. Educate yourself by googling "auxiliary battery drain Niro Kona Soul"
 
 Email, Password, Pin are same as in you Bluelink or UVO app. Cartype is mandatory, to distinguish Kia or Hyundai BlueLink operation. It is also used for ABRP integration.
@@ -18,16 +19,20 @@ Forced poll interval - Polls the car actively every x minutes. Default 60 (1 hou
 Watching an external flag, eg in domoticz. Car will be polled if that flag is set to 1. You may want to define a timer on that flag to turn it off automatically. If you use iOS you can achieve enabling and disabling this flag by iOS Shortcuts when plugin in and out of Apple Carplay. 
 The active car polling stops when you are no longer driving or charging and the FlagInCar is not set.
 
+Remove session.pkl to emulate the installation of an app, saving several parameters on disk.
 
 Fill params.py with the parameters.
 p_email = 'your email address from bluelinky or UVO app'
 p_password = 'your password from the app'
 p_pin = 'your pin from the app'
+p_vin = vin of car you want to manage, not relevant if only 1 car is in your profile
 p_abrp_token = 'abrp token (find in ABRP Torque Pro setup instructions)'
 p_abrp_carmodel = 'ABRP car type, find in ABRP API'
 p_WeatherApiKey = 'api key if you want actual weather uploaded to ABRP'
 p_WeatherProvider = 'weather provider Darksky or OpenWeather if you want actual weather uploaded to ABRP'
 p_homelocation="homelatitude;homelongitude"
-p_forcepollinterval=60   # forces application to poll actively every so many minutes
-p_URLphoneincar= 'url to return information from an external server if eg your phone is plugged into the car or unplugged'
+p_forcepollinterval = 120 # forces application to poll actively every so many minutes
+p_charginginterval = 60 # forces application to poll actively every so many minutes while charging
+p_heartbeatinterval = 30 # forces application to read from cache every so many minutes
+p_URLphoneincar= 'url to return information to an external server if eg your phone is plugged into the car or unplugged'
 

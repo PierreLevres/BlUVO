@@ -41,7 +41,7 @@
     <params>
         <param field="Username" label="Email-address"           width="200px" required="true"  default="john.doe@gmail.com"                  />
         <param field="Password" label="Password"                width="200px" required="true"  default="myLittleSecret" password="true"      />
-        <param field="Port"     label="Pin"                     width=" 50px" required="true"  default="1234" password="true"                />
+        <param field="Port"     label="Pin"                     width=" 80px" required="true"  default="1234" password="true"                />
         <param field="Mode2"    label="Car Type"                width="125px" required="true"                                                 >
             <options>
                 <option label="Ioniq 28kWh" value="hyundai:ioniq:17:28:other"/>
@@ -63,7 +63,7 @@
              </options>
         </param>
         <param field="Mode4"    label="Weather api key"     width="300px" required="false" default="0987a6b54c3de210123f456578901234"    />
-	    <param field="Mode3"    label="Forced poll interval (minutes)" width="100px"  required="true" default="60;15;2"                  />
+	    <param field="Mode3"    label="Intervals (in minutes: force; charging; heartbeat)" width="100px"  required="true" default="60;30;10"                  />
         <param field="SerialPort"    label="Debug"               width="75px"                                                                  >
             <options>
                 <option label="1. Debug" value="1"/>
@@ -78,19 +78,24 @@
 """
 
 import Domoticz, logging
+import random
 from datetime import datetime
 from bluvo_main import initialise, pollcar
 
-global email, password, pin, vin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer, logger, heartbeat, charginginterval, heartbeatinterval
+# global email, password, pin, vin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer, charginginterval
+global logger, lastHeartbeatTime, heartbeatinterval
 
 class BasePlugin:
-    global email, password, pin, vin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer, logger, heartbeat, charginginterval, heartbeatinterval
+    # global email, password, pin, vin, abrp_token,abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation, forcedpolltimer, charginginterval
+    global logger, lastHeartbeatTime, heartbeatinterval
+
     def onStart(self):
-        global heartbeat
-        heartbeat = ""
+        global lastHeartbeatTime, heartbeatinterval
+        lastHeartbeatTime = 0
         if Parameters["SerialPort"] == "1":
             Domoticz.Debugging(1)
             DumpConfigToLog()
+            Domoticz.Log('Debug mode')
             logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='bluvo.log',level=logging.DEBUG)
         else:
             Domoticz.Debugging(0)
@@ -113,15 +118,18 @@ class BasePlugin:
         else:                           Domoticz.Image(AFSTAND_ICON+".zip").Create()
         '''
         if (len(Devices) == 0):
-            Image = Images[self.HOMECONNECT_ICON].ID).Create()
+            # Image = Images[self.HOMECONNECT_ICON].ID).Create()
             Domoticz.Device(Unit=1, Type=113, Subtype=0 , Switchtype=3 , Name="km-stand").Create()
             Domoticz.Device(Unit=2, Type=243, Subtype=31, Switchtype=0 , Name="range").Create()
-            Domoticz.Device(Unit=3, Type=244, Subtype=73, Switchtype=2 , Name="charging",Image = Images[self.CHARGING_ICON].ID)).Create()
+            Domoticz.Device(Unit=3, Type=244, Subtype=73, Switchtype=2 , Name="charging").Create()
+            # ,Image = Images[self.CHARGING_ICON].ID)
             Domoticz.Device(Unit=4, TypeName="Percentage"              , Name="soc").Create()
             Domoticz.Device(Unit=5, TypeName="Percentage"              , Name="soc 12v").Create()
             Domoticz.Device(Unit=6, Type=243, Subtype=31, Switchtype=0 , Name="status 12v").Create()
-            Domoticz.Device(Unit=7, Type=244, Subtype=73, Switchtype=11, Name="kofferbak open",Image = Images[self.CLOSED_ICON].ID)).Create()
-            Domoticz.Device(Unit=8, Type=243, Subtype=31, Switchtype=0 , Name="afstand van huis",Image = Images[self.AFSTAND_ICON].ID)).Create()
+            Domoticz.Device(Unit=7, Type=244, Subtype=73, Switchtype=11, Name="kofferbak open").Create()
+            # ,Image = Images[self.CLOSED_ICON].ID)
+            Domoticz.Device(Unit=8, Type=243, Subtype=31, Switchtype=0 , Name="afstand van huis").Create()
+            # ,Image = Images[self.AFSTAND_ICON].ID)
             Domoticz.Device(Unit=9, Type=244, Subtype=73, Switchtype=0 , Name="FlaginCar").Create()
             # TODO Create a scheme for turning off device 9 regularly (eg every 2 hours)
             Domoticz.Log("Devices created.")
@@ -138,18 +146,22 @@ class BasePlugin:
         p_WeatherApiKey = Parameters["Mode4"]
         p_WeatherProvider = Parameters["Mode5"]
         p_homelocation = Settings["Location"]
-        if p_homelocation == None:
+        if p_homelocation is None:
             Domoticz.Log("Unable to parse coordinates")
             p_homelocation = "52.0930241;4.3423724,17"
             return False
-        intervals = Parameters["Mode3"].split(";")
+        intervals = Parameters["Mode3"]
+        for delim in ',;:': intervals = intervals.replace(delim, ' ')
+        intervals=intervals.split(" ")
         p_forcepollinterval = float(intervals[0])
         p_charginginterval = float(intervals[1])
         p_heartbeatinterval = float(intervals[2])
-
-        if initialise(p_email, p_password, p_pin, p_vin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval, p_charginginterval, p_heartbeatinterval):
-            Domoticz.Heartbeat(30)
-        else: Domoticz.Log ("Initialisation failed")
+        heartbeatinterval, initsuccess = initialise(p_email, p_password, p_pin, p_vin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval, p_charginginterval, p_heartbeatinterval)
+        if initsuccess:
+                Domoticz.Heartbeat(30)
+        else:
+                Domoticz.Log ("Initialisation failed")
+                return False
         return True
 
 
@@ -169,33 +181,29 @@ class BasePlugin:
         return True
 
     def onHeartbeat(self):
-        global heartbeat
+        global lastHeartbeatTime
         try:
-            if (float((datetime.now() - heartbeat).total_seconds()) > (heartbeatinterval-10)):
-                heartbeat = datetime.now()
-                logging.debug("entering on heatbeat")
-                oldphoneincarflag = (Devices[9].nValue==1)
-                logging.debug("about to enter poll procedure phone in car? %s",oldphoneincarflag)
-                phoneincarflag, updated, parsedStatus, afstand, googlelocation = pollcar(oldphoneincarflag)
-#                phoneincarflag, updated, afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = pollcar(oldphoneincarflag)
-                #if oldphoneincarflag != phoneincarflag: logging.info("exited poll procedure, phone in car? was %s and is %s", oldphoneincarflag, phoneincarflag)
-                if oldphoneincarflag and not( phoneincarflag):
-                    logging.debug("about to reset device phoneincarflag")
-                    UpdateDevice(9, 0, 0)
+            manualForcePoll = (Devices[9].nValue == 1)
+            if manualForcePoll:
+                lastHeartbeatTime = 0
+                UpdateDevice(9, 0, 0)
+            # at night (between 2300 and 700) only one in 2 polls is done
+            heartbeatmultiplier = (1 if 7 <= datetime.now().hour <= 22 else 2)
+            if lastHeartbeatTime == 0 or float((datetime.now() - lastHeartbeatTime).total_seconds()) > (random.uniform(0.75,1.5)*(heartbeatmultiplier * heartbeatinterval)):
+                lastHeartbeatTime = datetime.now()
+                updated, parsedStatus, afstand, googlelocation = pollcar(manualForcePoll)
                 if updated:
                     logging.debug("about to update devices")
                     UpdateDevice(1, 0, parsedStatus['odometer'])  # kmstand
                     UpdateDevice(2, 0, parsedStatus['range'])  # kmstand
                     UpdateDevice(3, parsedStatus['charging'], parsedStatus['charging'])  # charging
-                    UpdateDevice(4, parsedStatus['chargeHV'], parsedStatus['chargeHV')  # soc
+                    UpdateDevice(4, parsedStatus['chargeHV'], parsedStatus['chargeHV'])  # soc
                     UpdateDevice(5, parsedStatus['charge12V'], parsedStatus['charge12V'])  # soc12v
                     UpdateDevice(6, parsedStatus['status12V'], parsedStatus['status12V'])  # status 12v
                     UpdateDevice(7, parsedStatus['trunkopen'], parsedStatus['trunkopen'])  # kofferbak
-                    logging.debug("devices 1-7 updates, now renameing 8")
                     if str(Devices[8].sValue) != str(afstand) or Devices[8].Name != googlelocation:
                         Devices[8].Update(nValue=0, sValue=str(afstand), Name=googlelocation)
                         Domoticz.Log("Update " +  str(afstand) + "' (" + Devices[8].Name + ")")
-                    logging.debug("device 8 renamed")
         except:
             logging.debug("heartbeat wasnt set yet")
         return

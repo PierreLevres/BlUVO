@@ -3,6 +3,7 @@ params.py
 bluvo.log
 plugin_old.py
 publish.sh
+session.pkl
 
 # OS generated files #
 ######################

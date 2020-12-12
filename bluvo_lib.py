@@ -2,15 +2,16 @@ import requests
 import uuid
 import json
 import logging
+import pickle
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
 from datetime import datetime, timedelta
 
-global ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL
+global ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL, UserAgentPreLogon, UserAgent, ContentType, ContentJSON, AcceptLanguage, AcceptLanguageShort, AcceptEncoding, Connection, Accept, CcspApplicationId
 global controlToken, controlTokenExpiresAt
-global accessToken, accessTokenExpiresAt
+global accessToken, accessTokenExpiresAt, refreshToken
 global deviceId, vehicleId, cookies
-global email, password, pin
+global email, password, pin, vin
 
 
 def api_error(message):
@@ -20,17 +21,20 @@ def api_error(message):
 
 
 def temp2hex(temp):
-    if temp<14: temp = 14
-    if temp>32: temp = 30
+    if temp <= 14: return "00H"
+    if temp >= 30: return "20H"
     return str.upper(hex(round(float(temp) * 2) - 28).split("x")[1]) + "H"  # rounds to .5 and transforms to hex
 
 
-def hex2temp(hex):
-    return int(hex[:2], 16) / 2 + 14
+def hex2temp(hextemp):
+    temp = int(hextemp[:2], 16) / 2 + 14
+    if temp <= 14: return 14
+    if temp >= 30: return 30
+    return temp
 
 
 def get_constants(car_brand):
-    global ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL
+    global ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL, UserAgentPreLogon, UserAgent, ContentType, ContentJSON, AcceptLanguage, AcceptLanguageShort, AcceptEncoding, Connection, Accept, CcspApplicationId
     if car_brand == 'kia':
         ServiceId = 'fdc85c00-0a2f-4c64-bcb4-2cfb1500730a'
         BasicToken = 'Basic ZmRjODVjMDAtMGEyZi00YzY0LWJjYjQtMmNmYjE1MDA3MzBhOnNlY3JldA=='
@@ -42,41 +46,65 @@ def get_constants(car_brand):
     else:
         api_error('Carbrand not OK.')
         return False
+
     BaseHost = 'prd.eu-ccapi.' + car_brand + '.com:8080'
+
+    UserAgentPreLogon = 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_1 like Mac OS X) AppleWebKit/604.3.5 (KHTML, like Gecko) Version/11.0 Mobile/15B92 Safari/604.1'
+    UserAgent = 'UVO_REL/1.5.1 (iPhone; iOS 14.0.1; Scale/2.00)'
+    Accept = '*/*'
+    CcspApplicationId = '8464b0bf-4932-47b0-90ed-555fef8f143b'
+    AcceptLanguageShort = 'nl-nl'
+    AcceptLanguage = 'nl-NL;q=1, en-NL;q=0.9'
+    AcceptEncoding = 'gzip, deflate, br'
+    ContentType = 'application/x-www-form-urlencoded;charset=UTF-8'
+    ContentJSON = 'application/json;charset=UTF-8'
+    Connection = 'keep-alive'
     BaseURL = 'https://' + BaseHost
     return True
 
 
 def check_control_token():
     if refresh_access_token():
-        if controlTokenExpiresAt != None:
-            # logging.debug('Check pin expiry on %s and now it is %s',controlTokenExpiresAt,datetime.now())
-            if controlToken == None or datetime.now() >  controlTokenExpiresAt:
+        logging.debug('accesstoken OK')
+        if controlTokenExpiresAt is not None:
+            logging.debug('Check pin expiry on %s and now it is %s',controlTokenExpiresAt,datetime.now())
+            if controlToken is None or datetime.now() > controlTokenExpiresAt:
+                logging.info('control token expired at %s, about to renew', controlTokenExpiresAt)
                 return enter_pin()
     return True
 
 
 def refresh_access_token():
     global accessToken, accessTokenExpiresAt
-    if refreshToken == None:
+    if refreshToken is None:
         api_error('Need refresh token to refresh access token. Use login()')
         return False
-    if (datetime.now() - accessTokenExpiresAt).total_seconds() > -0.1:
+    logging.info('access token expires at %s', accessTokenExpiresAt)
+    if (datetime.now() - accessTokenExpiresAt).total_seconds() > -3600: #one hour beforehand refresh the access token
+        logging.info('need to refresh access token')
         url = BaseURL + '/api/v1/user/oauth2/token'
         headers = {
-            'Authorization': BasicToken,
-            'Content-type': 'application/x-www-form-urlencoded',
             'Host': BaseHost,
-            'Connection': 'Keep-Alive',
-            'Accept-Encoding': 'gzip, deflate',
-            'User-Agent': 'okhttp/3.10.0'}
-        data = 'grant_type=refresh_token&redirect_uri=https://www.getpostman.com/oauth2/callback&refresh_token=' + refreshToken
-        response = requests.post(url, data=data, headers=headers, throwHttpErrors = False)
+            'Content-type': ContentType,
+            'Accept-Encoding': AcceptEncoding,
+            'Connection': Connection,
+            'Accept': Accept,
+            'User-Agent': UserAgent,
+            'Accept-Language': AcceptLanguage,
+            'Authorization': BasicToken
+            }
+        # data = 'redirect_uri=https://www.getpostman.com/oauth2/callback&refresh_token=' + refreshToken + '&grant_type=refresh_token'
+        data = 'redirect_uri=' + BaseURL + '/api/v1/user/oauth2/redirect&refresh_token=' + refreshToken + '&grant_type=refresh_token'
+        # response = requests.post(url, data=data, headers=headers, throwHttpErrors=False)
+        response = requests.post(url, data=data, headers=headers)
+        logging.info('refreshed access token %s',response)
+        logging.info('response text %s',json.loads(response.text))
         if response.status_code == 200:
             try:
                 response = json.loads(response.text)
                 accessToken = 'Bearer ' + response['access_token']
                 accessTokenExpiresAt = datetime.now() + timedelta(seconds=response['expires_in'])
+                logging.info('refreshed access token %s expires in %s seconds at %s', accessToken[:60], response['expires_in'], accessTokenExpiresAt)
                 return True
             except:
                 api_error('Refresh token failed: ' + str(response.status_code))
@@ -91,21 +119,24 @@ def enter_pin():
     global controlToken, controlTokenExpiresAt
     url = BaseURL + '/api/v1/user/pin'
     headers = {
-        'Authorization': accessToken,
-        'Content-type': 'application/json;charset=UTF-8',
-        'Content-Length': '64',
         'Host': BaseHost,
-        'Connection': 'close',
-        'Accept-Encoding': 'gzip, deflate',
-        'User-Agent': 'okhttp/3.10.0'}
+        'Content-Type': ContentType,
+        'Accept-Encoding': AcceptEncoding,
+        'Connection': Connection,
+        'Accept': Accept,
+        'User-Agent': UserAgent,
+        'Accept-Language': AcceptLanguage,
+        'Authorization': accessToken
+    }
     data = {"deviceId": deviceId, "pin": pin}
-    response = requests.put(url, json=data, headers=headers)
+#    response = requests.put(url, json=data, headers=headers)
+    response = requests.put(url, json=data, headers=headers, cookies=cookies)
     if response.status_code == 200:
         try:
             response = json.loads(response.text)
             controlToken = 'Bearer ' + response['controlToken']
-            controlTokenExpiresAt = datetime.now()+timedelta(seconds=response['expiresTime'])
-            logging.debug ("Pin set, control token expires at %s and is %s", controlTokenExpiresAt, controlToken)
+            controlTokenExpiresAt = datetime.now() + timedelta(seconds=response['expiresTime'])
+            logging.info("Pin set, new control token %s, expires in %s seconds at %s", controlToken[:60], response['expiresTime'], controlTokenExpiresAt)
             return True
         except:
             api_error('NOK pin. Error: ' + str(response.status_code))
@@ -116,6 +147,7 @@ def enter_pin():
 
 
 def login(car_brand, email2, password2, pin2, vin2):
+
     global controlToken, controlTokenExpiresAt
     global accessToken, accessTokenExpiresAt, refreshToken
     global deviceId, vehicleId, cookies
@@ -124,152 +156,329 @@ def login(car_brand, email2, password2, pin2, vin2):
     password = password2
     pin = pin2
     vin = vin2
-
+    url = "no URL set yet"
     logging.info('entering login %s %s', car_brand, email2)
     get_constants(car_brand)
     logging.debug('constants %s %s %s %s %s', ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL)
 
-    controlToken = accessToken = refreshToken = None
-    controlTokenExpiresAt = accessTokenExpiresAt = datetime(1970, 1, 1, 0, 0, 0)
-
     try:
-        #---cookies----------------------------------
-        session = requests.Session()
-        url = BaseURL + '/api/v1/user/oauth2/authorize?response_type=code&state=test&client_id=' + ServiceId + '&redirect_uri=' + BaseURL + '/api/v1/user/oauth2/redirect'
-        response = session.get(url)
-        if response.status_code != 200:
-            api_error('NOK cookie for login. Error: ' + str(response.status_code))
-            return False
-        cookies = session.cookies.get_dict()
-        #--- set language----------------------------------
-        url = BaseURL + '/api/v1/user/language'
-        headers = {'Content-type': 'application/json'}
-        data = {"lang": "en"}
-        response = requests.post(url, json=data, headers=headers, cookies=cookies)
-        #---signin----------------------------------
-        url = BaseURL + '/api/v1/user/signin'
-        headers = {'Content-type': 'application/json'}
-        data = {"email": email, "password": password}
-        response = requests.post(url, json=data, headers=headers, cookies=cookies)
-        if response.status_code != 200:
-            api_error('NOK login. Error: ' + str(response.status_code))
-            return False
-        try:
-            response = json.loads(response.text)
-            response = response['redirectUrl']
-            parsed = urlparse.urlparse(response)
-            authcode = ''.join(parse_qs(parsed.query)['code'])
-        except:
-            api_error('NOK login. Error in parsing /signing request')
-            return False
-        #---get deviceid----------------------------------
-        url = BaseURL + '/api/v1/spa/notifications/register'
-        headers = {
-            'ccsp-service-id': ServiceId,
-            'Content-type': 'application/json;charset=UTF-8',
-            'Content-Length': '80',
-            'Host': BaseHost,
-            'Connection': 'close',
-            'Accept-Encoding': 'gzip, deflate',
-            'User-Agent': 'okhttp/3.10.0'}
-        data = {"pushRegId": "1", "pushType": "GCM", "uuid": str(uuid.uuid1())}
-        response = requests.post(url, json=data, headers=headers)
-        if response.status_code != 200:
-            api_error('NOK deviceID. Error: ' + str(response.status_code))
-            return False
-        try:
-            response = json.loads(response.text)
-            deviceId = response['resMsg']['deviceId']
-            logging.info("deviceId %s", deviceId)
-        except:
-            api_error('NOK login. Error in parsing /signing request')
-            return False
-        #---get accesstoken----------------------------------
-        url = BaseURL + '/api/v1/user/oauth2/token'
-        headers = {
-            'Authorization': BasicToken,
-            'Content-type': 'application/x-www-form-urlencoded',
-            'Host': BaseHost,
-            'Connection': 'Keep-Alive',
-            'Accept-Encoding': 'gzip, deflate',
-            'User-Agent': 'okhttp/3.10.0',
-            'grant_type': 'authorization_code'
-        }
-        data = 'grant_type=authorization_code&redirect_uri=' + BaseURL + '/api/v1/user/oauth2/redirect&code=' + authcode
-        response = requests.post(url, data=data, headers=headers)
-        if response.status_code != 200:
-            api_error('NOK token. Error: ' + str(response.status_code))
-            return False
-        try:
-            response = json.loads(response.text)
-            accessToken = 'Bearer ' + response['access_token']
-            refreshToken = response['refresh_token']
-            accessTokenExpiresAt = datetime.now() + timedelta(seconds=response['expires_in'])
-            logging.info("accesstoken %s, refrestoken %s expiresAt %s", accessToken, refreshToken, accessTokenExpiresAt)
-        except:
-            api_error('NOK login. Error in parsing /token request')
-            return False
-        #---get vehicles----------------------------------
-        url = BaseURL + '/api/v1/spa/vehicles'
-        headers = {'Authorization': accessToken, 'ccsp-device-id': deviceId}
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            api_error('NOK vehicles. Error: ' + str(response.status_code))
-            return False
-        try:
-            response = json.loads(response.text)
-            logging.debug("response %s", response)
-            vehicles = response['resMsg']['vehicles']
-            logging.debug("%s vehicles found", len(vehicles))
-        except:
-            api_error('NOK login. Error in getting vehicles: '+response)
-            return False
-        if len(vehicles) == 0:
-            api_error('NOK login. No vehicles found')
-            return False
-        #---get vehicleId----------------------------------
-        vehicleId = None
-        if len(vehicles) > 1:
-            for vehicle in vehicles:
-                url = BaseURL + '/api/v1/spa/vehicles/'+vehicle['vehicleId']+'/profile'
-                headers = {'Authorization': accessToken,'ccsp-device-id': deviceId}
-                response = requests.get(url, headers=headers)
-                try:
-                    response = json.loads(response.text)
-                    response = response['resMsg']['vinInfo'][0]['basic']
-                    vehicle['vin'] = response['vin']
-                    vehicle['generation'] = response['modelYear']
-                except:
-                    api_error('NOK login. Error in getting profile of vehicle: '+vehicle)
-                    return False
-                if vehicle['vin'] == vin: vehicleId=vehicle['vehicleId']
-            if vehicleId == None:
-                api_error('NOK login. The VIN you entered is not in the vehicle list ' + vin)
-                return False
-        else:
-            vehicleId = vehicles[0]['vehicleId']
-        logging.info("vehicleID %s", vehicleId)
+        with open('session.pkl', 'rb') as f:
+            controlToken, accessToken, refreshToken, controlTokenExpiresAt, accessTokenExpiresAt, deviceId, vehicleId, cookies = pickle.load(f)
+            print('session read %s',accessTokenExpiresAt)
     except:
-        api_error('Login failed')
-        return False
-    logging.debug("Finished successfull login procedure")
+        print('session not read')
+        controlToken = accessToken = refreshToken = None
+        controlTokenExpiresAt = accessTokenExpiresAt = datetime(1970, 1, 1, 0, 0, 0)
+
+        try:
+            # ---get deviceid----------------------------------
+            url = BaseURL + '/api/v1/spa/notifications/register'
+            headers = {
+                'ccsp-service-id': ServiceId,
+                'cssp-application-id': CcspApplicationId,
+                'Content-Type': ContentJSON,
+                'Host': BaseHost,
+                'Connection': Connection,
+                'Accept': Accept,
+                'Accept-Encoding': AcceptEncoding,
+                'Accept-Language': AcceptLanguage,
+                'User-Agent': UserAgent}
+            # what to do with the cookie? account=Nj<snip>>689c3
+            # what to do with the right PushRegId
+            data = {"pushRegId": "0827a4e6c94faa094fe20033ff7fdbbd3a7a789727546f2645a0f547f5db2a58", "pushType": "APNS", "uuid": str(uuid.uuid1())}
+            logging.debug(headers)
+            logging.debug(data)
+            response = requests.post(url, json=data, headers=headers)
+            if response.status_code != 200:
+                api_error('NOK deviceID. Error: ' + str(response.status_code))
+                return False
+            try:
+                response = json.loads(response.text)
+                deviceId = response['resMsg']['deviceId']
+                logging.info("deviceId %s", deviceId)
+            except:
+                api_error('NOK login. Error in parsing /signing request')
+                return False
+
+            # ---cookies----------------------------------
+            url = BaseURL + '/api/v1/user/oauth2/authorize?response_type=code&client_id=' + ServiceId + '&redirect_uri=' + BaseURL + '/api/v1/user/oauth2/redirect&state=test&lang=en'
+            session = requests.Session()
+            response = session.get(url)
+            if response.status_code != 200:
+                api_error('NOK cookie for login. Error: ' + str(response.status_code))
+                return False
+
+            cookies = session.cookies.get_dict()
+
+            # https: // prd.eu - ccapi.kia.com: 8080 / web / v1 / user / authorize?lang = en & cache = reset
+            # https: // prd.eu - ccapi.kia.com: 8080 / web / v1 / user / static / css / main.dbfc71fc.chunk.css
+            # https: // prd.eu - ccapi.kia.com: 8080 / web / v1 / user / static / js / 2.cf048054.chunk.js
+            # https: // prd.eu - ccapi.kia.com: 8080 / web / v1 / user / static / js / main.b922ef51.chunk.js
+
+            # --- set language----------------------------------
+            url = BaseURL + '/api/v1/user/language'
+            headers = {
+                'Host': BaseHost,
+                'Content-Type': ContentJSON,
+                'Origin': BaseURL,
+                'Connection': Connection,
+                'Accept': Accept,
+                'User-Agent': UserAgentPreLogon,
+                'Referer': BaseURL+'/web/v1/user/authorize?lang=en&cache=reset',
+                'Accept-Language': AcceptLanguageShort,
+                'Accept-Encoding': AcceptEncoding
+            }
+            data = {"lang": "en"}
+            requests.post(url, json=data, headers=headers, cookies=cookies)
+
+            # get session
+            # delete session
+
+            # ---signin----------------------------------
+            url = BaseURL + '/api/v1/user/signin'
+            headers = {
+                'Host': BaseHost,
+                'Content-Type': ContentJSON,
+                'Origin': BaseURL,
+                'Connection': Connection,
+                'Accept': Accept,
+                'User-Agent': UserAgentPreLogon,
+                'Referer': BaseURL+'/web/v1/user/signin',
+                'Accept-Language': AcceptLanguageShort,
+                'Accept-Encoding': AcceptEncoding
+            }
+            data = {"email": email, "password": password}
+            response = requests.post(url, json=data, headers=headers, cookies=cookies)
+            if response.status_code != 200:
+                api_error('NOK login. Error: ' + str(response.status_code))
+                return False
+            try:
+                response = json.loads(response.text)
+                response = response['redirectUrl']
+                parsed = urlparse.urlparse(response)
+                authcode = ''.join(parse_qs(parsed.query)['code'])
+                logging.info("authCode %s", authcode)
+            except:
+                api_error('NOK login. Error in parsing /signing request')
+                return False
+
+            # ---get accesstoken----------------------------------
+            url = BaseURL + '/api/v1/user/oauth2/token'
+            headers = {
+                'Host': BaseHost,
+                'Content-Type': ContentType,
+                'Accept-Encoding': AcceptEncoding,
+                'Connection': Connection,
+                'Accept': Accept,
+                'User-Agent': UserAgent,
+                'Accept-Language': AcceptLanguage,
+                'Authorization': BasicToken
+            }
+            data = 'redirect_uri=' + BaseURL + '/api/v1/user/oauth2/redirect&code=' + authcode + '&grant_type=authorization_code'
+            response = requests.post(url, data=data, headers=headers)
+            if response.status_code != 200:
+                api_error('NOK token. Error: ' + str(response.status_code))
+                return False
+            try:
+                response = json.loads(response.text)
+                accessToken = 'Bearer ' + response['access_token']
+                refreshToken = response['refresh_token']
+                accessTokenExpiresAt = datetime.now() + timedelta(seconds=response['expires_in'])
+                logging.info("accesstoken %s, refrestoken %s expiresAt %s", accessToken, refreshToken, accessTokenExpiresAt)
+            except:
+                api_error('NOK login. Error in parsing /token request')
+                return False
+            # notification/register
+
+            # user/profile    --> toevoegen bluelinky?
+            # setting/language --> toevoegen bluelinky?
+            # setting/service --> toevoegen bluelinky?
+
+            # vehicles
+
+            # ---get vehicles----------------------------------
+            url = BaseURL + '/api/v1/spa/vehicles'
+            headers = {
+                'Host': BaseHost,
+                'Accept': Accept,
+                'Authorization': accessToken,
+                'ccsp-application-id': CcspApplicationId,
+                'Accept-Language': AcceptLanguage,
+                'Accept-Encoding': AcceptEncoding,
+                'offset': '2',
+                'User-Agent': UserAgent,
+                'Connection': Connection,
+                'Content-Type': ContentJSON,
+                'ccsp-device-id': deviceId
+            }
+            response = requests.get(url, headers=headers, cookies=cookies)
+            if response.status_code != 200:
+                api_error('NOK vehicles. Error: ' + str(response.status_code))
+                return False
+            try:
+                response = json.loads(response.text)
+                logging.debug("response %s", response)
+                vehicles = response['resMsg']['vehicles']
+                logging.debug("%s vehicles found", len(vehicles))
+            except:
+                api_error('NOK login. Error in getting vehicles: ' + response)
+                return False
+            if len(vehicles) == 0:
+                api_error('NOK login. No vehicles found')
+                return False
+            # ---get vehicleId----------------------------------
+            vehicleId = None
+            if len(vehicles) > 1:
+                for vehicle in vehicles:
+                    url = BaseURL + '/api/v1/spa/vehicles/' + vehicle['vehicleId'] + '/profile'
+                    headers = {
+                        'Host': BaseHost,
+                        'Accept': Accept,
+                        'Authorization': accessToken,
+                        'ccsp-application-id': CcspApplicationId,
+                        'Accept-Language': AcceptLanguage,
+                        'Accept-Encoding': AcceptEncoding,
+                        'offset': '2',
+                        'User-Agent': UserAgent,
+                        'Connection': Connection,
+                        'Content-Type': ContentJSON,
+                        'ccsp-device-id': deviceId
+                    }
+                    response = requests.get(url, headers=headers, cookies=cookies)
+                    try:
+                        response = json.loads(response.text)
+                        response = response['resMsg']['vinInfo'][0]['basic']
+                        vehicle['vin'] = response['vin']
+                        vehicle['generation'] = response['modelYear']
+                    except:
+                        api_error('NOK login. Error in getting profile of vehicle: ' + vehicle)
+                        return False
+                    if vehicle['vin'] == vin: vehicleId = vehicle['vehicleId']
+                if vehicleId is None:
+                    api_error('NOK login. The VIN you entered is not in the vehicle list ' + vin)
+                    return False
+            else: vehicleId = vehicles[0]['vehicleId']
+            logging.info("vehicleID %s", vehicleId)
+            with open('session.pkl', 'wb') as f:  # Python 3: open(..., 'rb')
+                pickle.dump([controlToken, accessToken, refreshToken, controlTokenExpiresAt, accessTokenExpiresAt, deviceId, vehicleId, cookies],f)
+        except:
+            api_error('Login failed '+url)
+            return False
+        # the normal startup routine of the app is
+        # profile
+        # register
+        # records
+        # dezemoeten niet met de control token maar nog met de access token, te complex om te implementeren
+        # api_get_services()
+        # api_get_status(False)
+        # api_get_parklocation()
+        api_set_wakeup()
+        # api_get_valetmode()
+        # api_get_finaldestination()
+        logging.debug("Finished successfull login procedure")
     return True
 
 
-def api_set_wakeup(base_url, vehicle_id, access_token, device_id, application_id, base_host):
-    url = base_url + '/api/v1/spa/vehicles/' + vehicle_id + '/control/engine'
+def api_get_valetmode():
+    url = BaseURL + '/api/v1/spa/vehicles/' + vehicleId + '/status/valet'
     headers = {
-        'Authorization': access_token,
-        'ccsp-device-id': device_id,
-        'ccsp-application-id': application_id,
-        'offset': '1',
-        'Content-Type': 'application/json;charset=UTF-8',
-        'Content-Length': '72',
-        'Host': base_host,
-        'Connection': 'close',
-        'Accept-Encoding': 'gzip, deflate',
-        'User-Agent': 'okhttp/3.10.0'}
-    data = {"action": "prewakeup", "deviceId": device_id}
+        'Host': BaseHost,
+        'Accept': Accept,
+        'Authorization': accessToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage,
+        'Accept-Encoding': AcceptEncoding,
+        'offset': '2',
+        'User-Agent': UserAgent,
+        'Connection': Connection,
+        'Content-Type': ContentJSON,
+        'ccsp-device-id': deviceId
+    }
+    response = requests.get(url, headers=headers, cookies=cookies)
+    if response.status_code == 200:
+        response = json.loads(response.text)
+        try:
+            return response['resMsg']['valetMode']
+        except ValueError:
+            api_error('NOK Parsing valetmode: ' + str(response))
+            return False
+    else:
+        api_error('NOK requesting valetmode. Error: ' + str(response.status_code))
+        return False
+
+
+def api_get_parklocation():
+    url = BaseURL + '/api/v1/spa/vehicles/' + vehicleId + '/location/park'
+    headers = {
+        'Host': BaseHost,
+        'Accept': Accept,
+        'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage,
+        'Accept-Encoding': AcceptEncoding,
+        'offset': '2',
+        'User-Agent': UserAgent,
+        'Connection': Connection,
+        'Content-Type': ContentJSON,
+        'ccsp-device-id': deviceId
+    }
+    response = requests.get(url, headers=headers, cookies=cookies)
+    if response.status_code == 200:
+        response = json.loads(response.text)
+        try:
+            return response['resMsg']
+        except ValueError:
+            api_error('NOK Parsing location park: ' + str(response))
+            return False
+    else:
+        api_error('NOK requesting location park. Error: ' + str(response.status_code))
+        return False
+
+
+def api_get_finaldestination():
+    url = BaseURL + '/api/v1/spa/vehicles/' + vehicleId + '/finaldestionation'
+    headers = {
+        'Host': BaseHost,
+        'Accept': Accept,
+        'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage,
+        'Accept-Encoding': AcceptEncoding,
+        'offset': '2',
+        'User-Agent': UserAgent,
+        'Connection': Connection,
+        'Content-Type': ContentJSON,
+        'ccsp-device-id': deviceId
+    }
+    response = requests.get(url, headers=headers, cookies=cookies)
+    if response.status_code == 200:
+        response = json.loads(response.text)
+        try:
+            return response['resMsg']
+        except ValueError:
+            api_error('NOK Parsing final destination: ' + str(response))
+            return False
+    else:
+        api_error('NOK requesting final destination. Error: ' + str(response.status_code))
+        return False
+
+
+def api_set_wakeup():
+    url = BaseURL + '/api/v1/spa/vehicles/' + vehicleId + '/control/engine'
+    headers = {
+        'Host': BaseHost,
+        'Accept': Accept,
+        'Authorization': accessToken,
+        'Accept-Encoding': AcceptEncoding,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage,
+        'offset': '2',
+        'User-Agent': UserAgent,
+        'Connection': Connection,
+        'Content-Type': ContentJSON,
+        'ccsp-device-id': deviceId
+    }
+    data = {"action": "prewakeup", "deviceId": deviceId}
     response = requests.post(url, json=data, headers=headers)
     if response.status_code == 200:
         return True
@@ -277,23 +486,27 @@ def api_set_wakeup(base_url, vehicle_id, access_token, device_id, application_id
         api_error('NOK prewakeup. Error: ' + str(response.status_code))
         return False
 
-def api_get_status(refresh = False, raw = True):
-    global BaseURL, vehicleId, controlToken, deviceId
-    if not check_control_token(): return False
-    # get status either from cache or not
 
+def api_get_status(refresh=False, raw=True):
+    logging.debug('into get status')
+    # get status either from cache or not
+    if not check_control_token(): return False
+    logging.debug('checked control token')
     cachestring = '' if refresh else '/latest'
     url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/status' + cachestring
     headers = {
-        'Authorization': controlToken,
-        'ccsp-device-id': deviceId,
-        'Content-Type': 'application/json'
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     response = requests.get(url, headers=headers)
+    logging.debug('got status')
     if response.status_code == 200:
         response = json.loads(response.text)
         # a refresh==True returns a short list, a refresh==False returns a long list. If raw is true, return the entire string
         try:
+            logging.debug(response['resMsg'])
             if raw: return response['resMsg']
             if not refresh: response = response['resMsg']['vehicleStatusInfo']['vehicleStatus']
             return response
@@ -306,14 +519,14 @@ def api_get_status(refresh = False, raw = True):
 
 
 def api_get_odometer():
-    global BaseURL, vehicleId, controlToken, deviceId
     if not check_control_token(): return False
     # odometer
     url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/status/latest'
     headers = {
-        'Authorization': controlToken,
-        'ccsp-device-id': deviceId,
-        'Content-Type': 'application/json'
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
@@ -329,15 +542,16 @@ def api_get_odometer():
 
 
 def api_get_location():
-    global BaseURL, vehicleId, controlToken, deviceId
     if not check_control_token(): return False
     # location
     url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/location'
     headers = {
-        'Authorization': controlToken,
-        'ccsp-device-id': deviceId,
-        'Content-Type': 'application/json'
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
+
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         response = json.loads(response.text)
@@ -351,13 +565,15 @@ def api_get_location():
         return False
 
 
-def api_set_lock(action = 'close'):
+def api_set_lock(action='close'):
     if action == "":
         api_error('NOK Emtpy lock parameter')
         return False
     if type(action) == bool:
-        if action: action = 'close'
-        else: action = 'open'
+        if action:
+            action = 'close'
+        else:
+            action = 'open'
     else:
         action = str.lower(action)
         if action == 'on': action = 'close'
@@ -371,10 +587,12 @@ def api_set_lock(action = 'close'):
     # location
     url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/control/door'
     headers = {
-        'Authorization': controlToken,
-        'ccsp-device-id': deviceId,
-        'Content-Type': 'application/json'
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
+
     data = {"deviceId": deviceId, "action": action}
     response = requests.post(url, json=data, headers=headers)
     if response.status_code == 200:
@@ -385,16 +603,18 @@ def api_set_lock(action = 'close'):
         return False
 
 
-def api_set_charge(action = 'stop'):
+def api_set_charge(action='stop'):
     if action == "":
         api_error('NOK Emtpy charging parameter')
         return False
     if type(action) == bool:
-        if action: action = 'start'
-        else: action = 'stop'
+        if action:
+            action = 'start'
+        else:
+            action = 'stop'
     else:
         action = str.lower(action)
-        if action == 'on' : action = 'start'
+        if action == 'on': action = 'start'
         if action == 'off': action = 'stop'
     if not (action == 'start' or action == 'stop'):
         api_error('NOK Invalid charging parameter')
@@ -403,10 +623,12 @@ def api_set_charge(action = 'stop'):
     # location
     url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/control/charge'
     headers = {
-        'Authorization': controlToken,
-        'ccsp-device-id': deviceId,
-        'Content-Type': 'application/json'
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
+
     data = {"deviceId": deviceId, "action": action}
     response = requests.post(url, json=data, headers=headers)
     if response.status_code == 200:
@@ -417,16 +639,18 @@ def api_set_charge(action = 'stop'):
         return False
 
 
-def api_set_HVAC(action = 'stop', temp='21.0', bdefrost = False, bheating = False):
+def api_set_hvav(action='stop', temp='21.0', bdefrost=False, bheating=False):
     if action == "":
         api_error('NOK Emtpy HVAC parameter')
         return False
     if type(action) == bool:
-        if action: action = 'start'
-        else: action = 'stop'
+        if action:
+            action = 'start'
+        else:
+            action = 'stop'
     else:
         action = str.lower(action)
-        if action == 'on' : action = 'start'
+        if action == 'on': action = 'start'
         if action == 'off': action = 'stop'
     if not (action == 'stop' or action == 'start'):
         api_error('NOK Invalid HVAC parameter')
@@ -434,7 +658,7 @@ def api_set_HVAC(action = 'stop', temp='21.0', bdefrost = False, bheating = Fals
     try:
         tempcode = temp2hex(temp)
     except:
-        tempcode = "0EH"  #default 21 celcius
+        tempcode = "0EH"  # default 21 celcius
     try:
         heating = 1 if bheating else 0
     except:
@@ -444,9 +668,10 @@ def api_set_HVAC(action = 'stop', temp='21.0', bdefrost = False, bheating = Fals
     # location
     url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/control/temperature'
     headers = {
-        'Authorization': controlToken,
-        'ccsp-device-id': deviceId,
-        'Content-Type': 'application/json'
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     data = {
         "deviceId": deviceId,
@@ -468,16 +693,16 @@ def api_set_HVAC(action = 'stop', temp='21.0', bdefrost = False, bheating = Fals
         return False
 
 
-#------------ tests -----------
+# ------------ tests -----------
 def api_get_chargeschedule():
-    global BaseURL, vehicleId, controlToken, deviceId
     if not check_control_token(): return False
     # location
     url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/reservation/charge'
     headers = {
-        'Authorization': controlToken,
-        'ccsp-device-id': deviceId,
-        'Content-Type': 'application/json'
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
@@ -486,114 +711,277 @@ def api_get_chargeschedule():
             return response['resMsg']
         except ValueError:
             api_error('NOK Parsing charge schedule: ' + str(response))
-            return False
     else:
         api_error('NOK requesting charge schedule. Error: ' + str(response.status_code))
-        return False
+    return False
 
 
-def api_set_chargeschedule(Schedule1, Schedule2, TempSet, ChargeSchedule):
-    # Params Schedule1, Schedule2 = timeschedules for the temperature set
-    #   ["day"] is array [x,y,z, etc] with x,y,z, days that need to be set, where sunday =1 and saturday = 6
-    #   ["time"] is a list of time and timeSection ['time']:hhmm and ['timeSection']:0 or 1 (AM or PM)
-    # Param Tempset
-    #   ["temperature"] = the temp (in celcius)
-    #   ["defrost"] = true of false (on or off)
-    # ChargeSchedule
-    #   ['starttime'] = list of time and timeSection ['time']:hhmm and ['timeSection']:0 or 1 (AM or PM)
-    #   ['endtime'] = list of time and timeSection ['time']:hhmm and ['timeSection']:0 or 1 (AM or PM)
-    #   ['prio'] = True if it has prio, False if off peak Only
-    # if any parameter = True or None, then ignore values. If parameter = False then disable the schedule, else set the values.
+def api_set_chargeschedule(schedule1, schedule2, tempset, chargeschedule):
+    '''
+     Parameters Schedule1, Schedule2 = timeschedules for the temperature set
+       first array [x,y,z, etc] with x,y,z, days that need to be set, where sunday = 0 and saturday = 6
+       second the time and timesection in 12h notation, int or string, plus 0 or 1 (=AM or PM), int or string
+       eg [[2,5,6],["1040","0"]] means 10:40 AM on Tuesday, Friday, Saturday
 
+     Param Tempset
+      first the temp to be set (in celcius), float or string
+      second True or False for defrost on or off
+      [23.0, True] means a temperature of 23 celsius and defrosting on
 
-    global BaseURL, vehicleId, controlToken, deviceId
+     ChargeSchedule
+       first starttime = array time (int or string) and timesection 0 or 1 (AM or PM)
+       then  endtime = array time (int or string) and timesection 0 or 1 (AM or PM)
+       prio = 1 (only off-peak times) or 2 (prio to off-peak times)
+     [["1100","1"],["0700","0"], 1 ] means off peak times are from 23:00 to 07:00 and car should only charge during these off peak times
+
+     if any parameter = True or None, then ignore values. If parameter = False then disable the schedule, else set the values.
+    '''
     if not check_control_token(): return False
 
     # first get the currens settings
     data = api_get_chargeschedule()
+    olddata = data
     if not (not data):
         try:
             # now enter the new settings
-            url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/reservation/charge'
-            headers = {
-                'Authorization': controlToken,
-                'ccsp-device-id': deviceId,
-                'Content-Type': 'application/json'
-            }
-            data['deviceId'] = deviceId
-            if not (Schedule1 == None or Schedule1 == True): # ignore it of True or None
-                if Schedule1 == False: #turn the schedule off
-                    data['reservChargeInfo']['reservChargeSet']=False
-                else:
-                    data['reservChargeInfo']['reservChargeSet']=True
-                    data['reservChargeInfo']['reservInfo']=Schedule1
-            if not (Schedule2 == None or Schedule2 == True): # ignore it of True or None
-                if Schedule2 == False: #turn the schedule off
-                    data['reservChargeInfo2']['reservChargeSet']=False
-                else:
-                    data['reservChargeInfo2']['reservChargeSet']=True
-                    data['reservChargeInfo2']['reservInfo']=Schedule2
 
-            if not (TempSet == None or TempSet == True): # ignore it of True or None
-                if TempSet == False: #turn the schedule off
-                    data['reservChargeInfo']['reservFatcSet']['airCtrl'] = 0
-                    data['reservChargeInfo2']['reservFatcSet']['airCtrl'] = 0
+            if not (schedule1 is None or schedule1 is True):  # ignore it of True or None
+                if schedule1 is False:  # turn the schedule off
+                    data['reservChargeInfo']['reservChargeInfoDetail']['reservChargeSet'] = False
                 else:
-                    data['reservChargeInfo']['reservFatcSet']['airCtrl'] = 1
-                    data['reservChargeInfo2']['reservFatcSet']['airCtrl'] = 1
-                    data['reservChargeInfo']['reservFatcSet']['airTemp']['value'] = temp2hex(TempSet['Temperature'])
-                    data['reservChargeInfo2']['reservFatcSet']['airTemp']['value'] = temp2hex(TempSet['Temperature'])
+                    data['reservChargeInfo']['reservChargeInfoDetail']['reservChargeSet'] = True
+                    schedule = {"day": schedule1[0], "time": {"time": str(schedule1[1][0]), "timeSection": int(schedule1[2][1])}}
+                    data['reservChargeInfo']['reservChargeInfoDetail']['reservInfo'] = schedule
+            if not (schedule2 is None or schedule2 is True):  # ignore it of True or None
+                if schedule2 is False:  # turn the schedule off
+                    data['reservChargeInfo2']['reservChargeInfoDetail']['reservChargeSet'] = False
+                else:
+                    data['reservChargeInfo2']['reservChargeInfoDetail']['reservChargeSet'] = True
+                    schedule = {"day": schedule2[0], "time": {"time": str(schedule2[1][0]), "timeSection": int(schedule2[2][1])}}
+                    data['reservChargeInfo2']['reservChargeInfoDetail']['reservInfo'] = schedule
 
-            if not (ChargeSchedule == None or ChargeSchedule == True): # ignore it of True or None
-                if ChargeSchedule == False: #turn the schedule off
+            if not (tempset is None or tempset is True):  # ignore it of True or None
+                if tempset is False:  # turn the schedule off
+                    data['reservChargeInfo']['reservChargeInfoDetail']['reservFatcSet']['airCtrl'] = 0
+                    data['reservChargeInfo2']['reservChargeInfoDetail']['reservFatcSet']['airCtrl'] = 0
+                else:
+                    data['reservChargeInfo']['reservChargeInfoDetail']['reservFatcSet']['airCtrl'] = 1
+                    data['reservChargeInfo2']['reservChargeInfoDetail']['reservFatcSet']['airCtrl'] = 1
+                    data['reservChargeInfo']['reservChargeInfoDetail']['reservFatcSet']['airTemp']['value'] = temp2hex(str(tempset[0]))
+                    data['reservChargeInfo2']['reservChargeInfoDetail']['reservFatcSet']['airTemp']['value'] = temp2hex(str(tempset[0]))
+                    data['reservChargeInfo']['reservChargeInfoDetail']['reservFatcSet']['defrost'] = tempset[1]
+                    data['reservChargeInfo2']['reservChargeInfoDetail']['reservFatcSet']['defrost'] = tempset[1]
+
+            if not (chargeschedule is None or chargeschedule is True):  # ignore it of True or None
+                if chargeschedule is False:  # turn the schedule off
                     data['reservFlag'] = 0
                 else:
                     data['reservFlag'] = 1
-                    data['offPeakPowerInfo'] = ChargeSchedule
+                    data['offPeakPowerInfo']['offPeakPowerTime1'] = {
+                        "starttime": {"time": str(chargeschedule[0][1]), "timeSection": int(chargeschedule[0][1])},
+                        "endtime": {"time": str(chargeschedule[1][1]), "timeSection": int(chargeschedule[1][1])}}
+                    data['offPeakPowerInfo']['offPeakPowerFlag'] = int(chargeschedule[2])
+            if data == olddata: return True  # nothing changed
 
+            url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/reservation/charge'
+            headers = {
+                'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+                'ccsp-application-id': CcspApplicationId,
+                'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+                'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON,
+                'ccsp-device-id': deviceId
+            }
+            data['deviceId'] = deviceId
             response = requests.post(url, json=data, headers=headers)
             if response.status_code == 200: return True
         except:
-            api_error('NOK setting charge schedule.' )
+            api_error('NOK setting charge schedule.')
             return False
     api_error('NOK setting charge schedule.')
     return False
 
-def api_set_chargelimits(LimitFast = 80, LimitSlow = 100):
-    global BaseURL, vehicleId, controlToken, deviceId
+
+def api_set_chargelimits(limit_fast=80, limit_slow=100):
     if not check_control_token(): return False
     url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/charge/target'
     headers = {
-        'Authorization': controlToken,
-        'ccsp-device-id': deviceId,
-        'Connection': 'keep-alive',
-        'offset': '2',
-        'Content-Type': 'application/json;charset=UTF-8',
-        'Accept-Encoding': 'gzip, deflate',
-        'User-Agent': 'okhttp/3.10.0'
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
-    data = {'targetSOClist' : [{'plugType': 0,'targetSOClevel': int(LimitFast) },{'plugType': 1,'targetSOClevel': int(LimitSlow)}]}
+    data = {'targetSOClist': [{'plugType': 0, 'targetSOClevel': int(limit_fast)},
+                              {'plugType': 1, 'targetSOClevel': int(limit_slow)}]}
     response = requests.post(url, json=data, headers=headers, cookies=cookies)
-    if response.status_code == 200: return True
+    if response.status_code == 200:
+        return True
     else:
-        api_error('NOK setting charge limits. Error: ' + response.text['resMsg']+str(response.status_code))
+        api_error('NOK setting charge limits. Error: ' + response.text + str(response.status_code))
         return False
 
-def api_set_navigation(poiInfoList):
-    global BaseURL, vehicleId, controlToken, deviceId
+
+def api_set_navigation(poi_info_list):
     if not check_control_token(): return False
-    data = {}
     url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/location/routes'
     headers = {
-        'Authorization': controlToken,
-        'ccsp-device-id': deviceId,
-        'Content-Type': 'application/json'
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
-    data=poiInfoList
-    data['deviceID']=deviceId
-    response = requests.post(url, json=data, headers=headers)
+    data = poi_info_list
+    poi_info_list['deviceID'] = deviceId
+    response = requests.post(url, json=poi_info_list, headers=headers)
     if response.status_code == 200:
         return True
     else:
         api_error('NOK setting navigation. Error: ' + str(response.status_code))
         return False
+    #TODO test what will happen if you send an array of 2 or more POI's, will it behave like a route-plan ?
+
+
+def api_get_userinfo():
+    if not check_control_token(): return False
+    # location
+    url = BaseURL + '/api/v1/user/profile'
+    headers = {
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        response = json.loads(response.text)
+        try:
+            return response
+        except ValueError:
+            api_error('NOK Getting user info: ' + str(response))
+            return False
+    else:
+        api_error('NOK Getting user info. Error: ' + str(response.status_code))
+        return False
+
+
+def api_get_services():
+    if not check_control_token(): return False
+    # location
+    url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/setting/service'
+    headers = {
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        response = json.loads(response.text)
+        try:
+            return response['resMsg']['serviceCategorys']
+            # returns array of booleans for each service in the list
+            # 0= categoryname:1 = GIS
+            # 1= categoryname:2 = Product and service improvements
+            # 2= categoryname:3 = Alerts & security
+            # 3= categoryname:4 = Vehicle Status (report, trips)
+            # 4= categoryname:5 = Remote
+        except ValueError:
+            api_error('NOK Getting active services: ' + str(response))
+            return False
+    else:
+        api_error('NOK Getting active services. Error: ' + str(response.status_code))
+        return False
+
+
+def api_set_activeservices(servicesonoff=[]):
+    # servicesonoff is array of booleans for each service in the list
+    # 0= categoryname:1 = GIS
+    # 1= categoryname:2 = Product and service improvements
+    # 2= categoryname:3 = Alerts & security
+    # 3= categoryname:4 = Vehicle Status (report, trips)
+    # 4= categoryname:5 = Remote
+    if not check_control_token(): return False
+    # location
+    url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/setting/service'
+    headers = {
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
+    }
+    data=[]
+    i = 0
+    for service_on_off in servicesonoff:
+        data['serviceCategorys'][i]['categoryName'] = i+1
+        data['serviceCategorys'][i]['categoryStatus'] = service_on_off
+    response = requests.post(url, data=data, headers=headers)
+    if response.status_code == 200:
+        response = json.loads(response.text)
+        try:
+            return response['resMsg']
+        except ValueError:
+            api_error('NOK Getting active services: ' + str(response))
+            return False
+    else:
+        api_error('NOK Getting active services. Error: ' + str(response.status_code))
+        return False
+
+
+def api_get_monthlyreport(month):
+    if not check_control_token(): return False
+    # location
+    url = BaseURL + '/api/v2/spa/vehicles/' + vehicleId + '/monthlyreport'
+    headers = {
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
+    }
+    data={'setRptMonth': "202006"}
+    response = requests.post(url, json=data, headers=headers)
+    if response.status_code == 200:
+        response = json.loads(response.text)
+        try:
+            return response['resMsg']['monthlyReport']
+        except ValueError:
+            api_error('NOK Getting montly report: ' + str(response))
+            return False
+    else:
+        api_error('NOK Getting monthlyreport. Error: ' + str(response.status_code))
+        return False
+
+
+def api_get_monthlyreportlist():
+    if not check_control_token(): return False
+    # location
+    url = BaseURL + '/api/v1/spa/vehicles/' + vehicleId + '/monthlyreportlist'
+    headers = {
+        'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
+        'ccsp-application-id': CcspApplicationId,
+        'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        response = json.loads(response.text)
+        try:
+            return response['resMsg']['monthlyReport']
+        except ValueError:
+            api_error('NOK Getting montly reportlist: ' + str(response))
+            return False
+    else:
+        api_error('NOK Getting monthlyreportlist. Error: ' + str(response.status_code))
+        return False
+
+# TODO implement the other services
+'''
+api/v1/spa/vehicles/{carid}/monthlyreportlist —> doGetMVRInfoList    --> cant find it
+api/v1/spa/vehicles/{carid}/drvhistory —> doPostECOInfo 
+api/v1/spa/vehicles/{carid}/tripinfo —> doPostTripInfo --> 403 erorr unless i use V2 api
+api/v1/spa/vehicles/{carid}/profile —> doUpdateVehicleName
+
+api/v1/spa/vehicles/{carid}/location/park —>  doCarFinderLatestRequest
+
+api/v2/spa/vehicles/{carid}/control/engine —> doEngine
+api/v2/spa/vehicles/{carid}/control/horn —> doHorn
+api/v2/spa/vehicles/{carid}/control/light —> doLights
+'''
