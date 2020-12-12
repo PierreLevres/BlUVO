@@ -4,9 +4,11 @@ FILE=~/pi/Domoticz/plugins/bluvo/plugin.py
 if [ -f "$FILE" ]; then
     echo "already mounted"
 else
+  echo -n User on pi:
+  read -s user
   echo -n Password on pi:
   read -s password
-  mount -t smbfs "//<pi-user>:$password@<pi_name>._smb._tcp.local/<homedir on pi>" ~/pi
+  mount -t smbfs "//$user:$password@rpi._smb._tcp.local/$user" ~/pi
 fi
 
 cd ~/pi/Domoticz/plugins/bluvo/
