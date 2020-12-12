@@ -2,16 +2,16 @@
 # attact the directory on the pi
 FILE=~/pi/Domoticz/plugins/bluvo/plugin.py
 if [ -f "$FILE" ]; then
-    echo "al gemount"
+    echo "already mounted"
 else
-  echo -n Password voor de pi:
+  echo -n Password on pi:
   read -s password
-  mount -t smbfs "//pi:$password@RPI._smb._tcp.local/pi" ~/pi
+  mount -t smbfs "//<pi-user>:$password@<pi_name>._smb._tcp.local/<homedir on pi>" ~/pi
 fi
 
 cd ~/pi/Domoticz/plugins/bluvo/
 
-if [[ plugin.py -ot /Users/peter/Documents/GitHub/bluvo/plugin.py ]];
+if [[ plugin.py -ot ~/Documents/GitHub/bluvo/plugin.py ]];
 then
   RESTART=True
 else
@@ -24,10 +24,10 @@ FILES=*.py
 for f in $FILES
 do
   # take action on each file. $f store current file name
-  if [[ $f -ot /Users/peter/Documents/GitHub/bluvo/$f ]];
+  if [[ $f -ot ~/Documents/GitHub/bluvo/$f ]];
   then
     RELOAD=True
-    /bin/cp -rf /Users/peter/Documents/GitHub/bluvo/$f . 2>/dev/null
+    /bin/cp -rf ~/Documents/GitHub/bluvo/$f . 2>/dev/null
   fi
 done
 if [[ "$RESTART" == "True" ]]; then
