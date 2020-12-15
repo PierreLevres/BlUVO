@@ -69,7 +69,7 @@ def check_control_token():
         if controlTokenExpiresAt is not None:
             logging.debug('Check pin expiry on %s and now it is %s',controlTokenExpiresAt,datetime.now())
             if controlToken is None or datetime.now() > controlTokenExpiresAt:
-                logging.info('control token expired at %s, about to renew', controlTokenExpiresAt)
+                logging.debug('control token expired at %s, about to renew', controlTokenExpiresAt)
                 return enter_pin()
     return True
 
@@ -79,9 +79,9 @@ def refresh_access_token():
     if refreshToken is None:
         api_error('Need refresh token to refresh access token. Use login()')
         return False
-    logging.info('access token expires at %s', accessTokenExpiresAt)
+    logging.debug('access token expires at %s', accessTokenExpiresAt)
     if (datetime.now() - accessTokenExpiresAt).total_seconds() > -3600: #one hour beforehand refresh the access token
-        logging.info('need to refresh access token')
+        logging.debug('need to refresh access token')
         url = BaseURL + '/api/v1/user/oauth2/token'
         headers = {
             'Host': BaseHost,
@@ -93,18 +93,18 @@ def refresh_access_token():
             'Accept-Language': AcceptLanguage,
             'Authorization': BasicToken
             }
-        # data = 'redirect_uri=https://www.getpostman.com/oauth2/callback&refresh_token=' + refreshToken + '&grant_type=refresh_token'
         data = 'redirect_uri=' + BaseURL + '/api/v1/user/oauth2/redirect&refresh_token=' + refreshToken + '&grant_type=refresh_token'
         # response = requests.post(url, data=data, headers=headers, throwHttpErrors=False)
         response = requests.post(url, data=data, headers=headers)
-        logging.info('refreshed access token %s',response)
-        logging.info('response text %s',json.loads(response.text))
+        logging.debug('refreshed access token %s',response)
+        logging.debug('response text %s',json.loads(response.text))
         if response.status_code == 200:
             try:
                 response = json.loads(response.text)
                 accessToken = 'Bearer ' + response['access_token']
                 accessTokenExpiresAt = datetime.now() + timedelta(seconds=response['expires_in'])
-                logging.info('refreshed access token %s expires in %s seconds at %s', accessToken[:60], response['expires_in'], accessTokenExpiresAt)
+                logging.info('refreshed access token %s expires in %s seconds at %s',
+                             accessToken[:40], response['expires_in'], accessTokenExpiresAt)
                 return True
             except:
                 api_error('Refresh token failed: ' + str(response.status_code))
@@ -136,7 +136,8 @@ def enter_pin():
             response = json.loads(response.text)
             controlToken = 'Bearer ' + response['controlToken']
             controlTokenExpiresAt = datetime.now() + timedelta(seconds=response['expiresTime'])
-            logging.info("Pin set, new control token %s, expires in %s seconds at %s", controlToken[:60], response['expiresTime'], controlTokenExpiresAt)
+            logging.debug("Pin set, new control token %s, expires in %s seconds at %s",
+                          controlToken[:40], response['expiresTime'], controlTokenExpiresAt)
             return True
         except:
             api_error('NOK pin. Error: ' + str(response.status_code))
@@ -164,9 +165,9 @@ def login(car_brand, email2, password2, pin2, vin2):
     try:
         with open('session.pkl', 'rb') as f:
             controlToken, accessToken, refreshToken, controlTokenExpiresAt, accessTokenExpiresAt, deviceId, vehicleId, cookies = pickle.load(f)
-            print('session read %s',accessTokenExpiresAt)
+            logging.info('session read %s',accessTokenExpiresAt)
     except:
-        print('session not read')
+        logging.info('session not read from file, full login')
         controlToken = accessToken = refreshToken = None
         controlTokenExpiresAt = accessTokenExpiresAt = datetime(1970, 1, 1, 0, 0, 0)
 
@@ -577,6 +578,7 @@ def api_set_lock(action='close'):
     else:
         action = str.lower(action)
         if action == 'on': action = 'close'
+        if action == 'lock': action = 'close'
         if action == 'off': action = 'open'
     if not (action == 'close' or action == 'open'):
         api_error('NOK Invalid locking parameter')
@@ -639,7 +641,7 @@ def api_set_charge(action='stop'):
         return False
 
 
-def api_set_hvav(action='stop', temp='21.0', bdefrost=False, bheating=False):
+def api_set_hvac(action='stop', temp='21.0', bdefrost=False, bheating=False):
     if action == "":
         api_error('NOK Emtpy HVAC parameter')
         return False
@@ -676,7 +678,7 @@ def api_set_hvav(action='stop', temp='21.0', bdefrost=False, bheating=False):
     data = {
         "deviceId": deviceId,
         "action": action,
-        "hvacType": 0,
+        "hvacType": 1,
         "options": {
             "defrost": bdefrost,
             "heating1": heating

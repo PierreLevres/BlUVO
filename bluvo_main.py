@@ -1,5 +1,5 @@
 from datetime import datetime
-from bluvo_lib import hex2temp, temp2hex, login, api_get_status, api_get_location, api_set_lock, api_set_hvav, api_set_charge
+from bluvo_lib import hex2temp, temp2hex, login, api_get_status, api_get_location, api_set_lock, api_set_hvac, api_set_charge
 from generic_lib import send_abr_ptelemetry, distance
 import logging
 import random
@@ -185,3 +185,12 @@ def pollcar(manualForcePoll):
         logging.error('carstatus: %s', carstatus)
     logging.info('pollcount: %s', pollcounter)
     return updated, parsed_status, afstand, googlelocation
+
+def setcharge(command):
+    return api_set_charge(command)
+
+def lockdoors(command):
+    return api_set_lock(command)
+
+def setairco (action, temp):
+    return api_set_hvac(action,temp,False,False)
