@@ -5,7 +5,7 @@ import json
 import consolemenu
 from generic_lib import georeverse, geolookup
 from bluvo_main import initialise, pollcar
-from bluvo_lib import login, api_get_status, api_get_location, api_set_lock, api_set_hvav, api_set_charge, \
+from bluvo_lib import login, api_get_status, api_get_location, api_set_lock, api_set_hvac, api_set_charge, \
     api_get_chargeschedule, api_set_chargelimits, api_set_navigation, api_get_services, api_get_userinfo,\
     api_get_monthlyreport, api_get_monthlyreportlist
 

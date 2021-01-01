@@ -105,6 +105,11 @@ def refresh_access_token():
                 accessTokenExpiresAt = datetime.now() + timedelta(seconds=response['expires_in'])
                 logging.info('refreshed access token %s expires in %s seconds at %s',
                              accessToken[:40], response['expires_in'], accessTokenExpiresAt)
+                with open('session.pkl', 'wb') as f:
+                    pickle.dump(
+                        [controlToken, accessToken, refreshToken, controlTokenExpiresAt, accessTokenExpiresAt, deviceId,
+                         vehicleId, cookies], f)
+
                 return True
             except:
                 api_error('Refresh token failed: ' + str(response.status_code))
@@ -360,7 +365,7 @@ def login(car_brand, email2, password2, pin2, vin2):
                     return False
             else: vehicleId = vehicles[0]['vehicleId']
             logging.info("vehicleID %s", vehicleId)
-            with open('session.pkl', 'wb') as f:  # Python 3: open(..., 'rb')
+            with open('session.pkl', 'wb') as f:
                 pickle.dump([controlToken, accessToken, refreshToken, controlTokenExpiresAt, accessTokenExpiresAt, deviceId, vehicleId, cookies],f)
         except:
             api_error('Login failed '+url)

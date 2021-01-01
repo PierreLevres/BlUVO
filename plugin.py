@@ -120,7 +120,7 @@ class BasePlugin:
         if (len(Devices) == 0):
             Domoticz.Device(Unit=1, Type=113, Subtype=0 , Switchtype=3 , Name="km-stand").Create()
             Domoticz.Device(Unit=2, Type=243, Subtype=31, Switchtype=0 , Name="range").Create()
-            Domoticz.Device(Unit=3, Type=244, Subtype=73, Switchtype=2 , Name="charging").Create()
+            Domoticz.Device(Unit=3, Type=244, Subtype=73, Switchtype=0 , Name="charging").Create()
             Domoticz.Device(Unit=4, TypeName="Percentage"              , Name="soc").Create()
             Domoticz.Device(Unit=5, TypeName="Percentage"              , Name="soc 12v").Create()
             Domoticz.Device(Unit=6, Type=243, Subtype=31, Switchtype=0 , Name="status 12v").Create()
@@ -172,19 +172,15 @@ class BasePlugin:
         logging.info("unit %s, Command %s Level %s Hue %s",Unit, Command, Level, Hue)
         if Unit==3:
             setcharge(Command)
-            UpdateDevice(10, 0 if Command == "Off" else 1, 0 if Command == "Off" else 1)
+            UpdateDevice(3, 0 if Command == "Off" else 1, 0 if Command == "Off" else 1)
         if Unit==9: UpdateDevice(9, 0 if Command=="Off" else 1, 0 if Command=="Off" else 1)
         if Unit==10:
             lockdoors(Command)
             UpdateDevice(10, 0 if Command=="Off" else 1 , 0 if Command=="Off" else 1)
         if Unit==11:
-            if Level < 17:
-                setairco("off",0)
-                Devices[11].Update(nValue=0, sValue=str(Level),Name="e-Niro airco off")
-            else:
-                logging.info('start climate %s', Level)
-                setairco("on", Level)
-                Devices[11].Update(nValue=0, sValue=str(Level),Name="e-Niro airco on")
+            climate = "off" if Level < 17 else "on"
+            setairco(climate,Level)
+            Devices[11].Update(nValue=0, sValue=str(Level), Name="eNiro - airco: "+climate)
         return True
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
@@ -204,6 +200,7 @@ class BasePlugin:
                 updated, parsedStatus, afstand, googlelocation = pollcar(manualForcePoll)
                 if updated:
                     logging.debug("about to update devices")
+                    logging.debug(parsedStatus)
                     UpdateDevice(1, 0, parsedStatus['odometer'])  # kmstand
                     UpdateDevice(2, 0, parsedStatus['range'])  # bereik
                     UpdateDevice(3, parsedStatus['charging'], parsedStatus['charging'])  # charging
@@ -214,9 +211,10 @@ class BasePlugin:
                     if str(Devices[8].sValue) != str(afstand) or Devices[8].Name != googlelocation:
                         Devices[8].Update(nValue=0, sValue=str(afstand), Name=googlelocation)
                         Domoticz.Log("Update " +  str(afstand) + "' (" + Devices[8].Name + ")")
-                    UpdateDevice(10, parsedStatus['climate'], parsedStatus['locked'])  # deuren
-                    Devices[11].Update(nValue=0, sValue=parsedStatus['temperature'], Name="e-Niro airco on" if parsedStatus['climateactive'] else "e-Niro airco off")
-
+                    UpdateDevice(10, parsedStatus['locked'], parsedStatus['locked'])  # deuren
+                    climate = "eNiro - airco: on" if (parsedStatus['climateactive'] == True) else "eNiro - airco: off"
+                    Level = parsedStatus['temperature']
+                    Devices[11].Update(nValue=0, sValue=str(Level), Name= climate)
         except:
             logging.debug("heartbeat wasnt set yet")
         return
