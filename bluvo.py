@@ -43,7 +43,6 @@ if initsuccess:
                 locatie = locatie['gpsDetail']['coord']
                 print(georeverse(locatie['lat'], locatie['lon']))
         if x == 6:
-            print(x)
             while True:
                 # read semaphore flag
                 try:
@@ -51,11 +50,12 @@ if initsuccess:
                         manualForcePoll = pickle.load(f)
                 except:
                     manualForcePoll = False
+                print(manualForcePoll)
                 updated, parsedStatus, afstand, googlelocation = pollcar(manualForcePoll)
                 # clear semaphore flag
                 manualForcePoll = False
                 with open('semaphore.pkl', 'wb') as f:
-                    pickle.dump([manualForcePoll], f)
+                    pickle.dump(manualForcePoll, f)
 
                 if updated:
                     print('afstand van huis, rijrichting, snelheid en km-stand: ', afstand, ' / ',

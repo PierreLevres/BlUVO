@@ -1,5 +1,5 @@
 #sets a semaphore read my bluvo.py
 import pickle
-manualForcePoll = False
+manualForcePoll = True
 with open('semaphore.pkl', 'wb') as f:
-    pickle.dump([manualForcePoll], f)
+    pickle.dump(manualForcePoll, f)

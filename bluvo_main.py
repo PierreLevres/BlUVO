@@ -111,7 +111,9 @@ def pollcar(manualForcePoll):
     # reset pollcounter at start of day
     break_point = "start poll procedure"  # breakpoint
     carstatus = "empty car status"
-    if oldpolltime.date() != datetime.now().date(): pollcounter = 0
+    if oldpolltime == "": pollcounter = 0
+    else:
+        if oldpolltime.date() != datetime.now().date(): pollcounter = 0
     parsed_status = {}
     updated = False
     afstand = 0
