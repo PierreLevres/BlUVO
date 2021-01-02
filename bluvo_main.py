@@ -28,11 +28,11 @@ def process_data(carstatus, location, odometer):
             'dooropenRL': carstatus['doorOpen']['backLeft'],
             'dooropenRR': carstatus['doorOpen']['backRight'],
             'dooropenANY': (carstatus['doorOpen']['frontLeft'] or carstatus['doorOpen']['backLeft'] or carstatus['doorOpen']['backRight'] or carstatus['doorOpen']['frontRight']),
-            'tirewarningFL' : carstatus['tirePressureLamp']['tirePressureLampFL'],
-            'tirewarningFR' : carstatus['tirePressureLamp']['tirePressureLampFR'],
-            'tirewarningRL' : carstatus['tirePressureLamp']['tirePressureLampRL'],
-            'tirewarningRR' : carstatus['tirePressureLamp']['tirePressureLampRR'],
-            'tirewarningall' : carstatus['tirePressureLamp']['tirePressureLampAll'],
+            'tirewarningFL': carstatus['tirePressureLamp']['tirePressureLampFL'],
+            'tirewarningFR': carstatus['tirePressureLamp']['tirePressureLampFR'],
+            'tirewarningRL': carstatus['tirePressureLamp']['tirePressureLampRL'],
+            'tirewarningRR': carstatus['tirePressureLamp']['tirePressureLampRR'],
+            'tirewarningall': carstatus['tirePressureLamp']['tirePressureLampAll'],
             'climateactive': carstatus['airCtrlOn'],
             'steerwheelheat': carstatus['steerWheelHeat'],
             'rearwindowheat': carstatus['sideBackWindowHeat'],
@@ -40,7 +40,7 @@ def process_data(carstatus, location, odometer):
             'defrost': carstatus['defrost'],
             'engine': carstatus['engine'],
             'acc': carstatus['acc'],
-            'range' : carstatus['evStatus']['drvDistance'][0]['rangeByFuel']['totalAvailableRange']['value'],
+            'range': carstatus['evStatus']['drvDistance'][0]['rangeByFuel']['totalAvailableRange']['value'],
             'charge12V': carstatus['battery']['batSoc'],
             'status12V': carstatus['battery']['batState'],
             'charging': carstatus['evStatus']['batteryCharge'],
@@ -51,7 +51,7 @@ def process_data(carstatus, location, odometer):
             'loclat': location['coord']['lat'],
             'loclon': location['coord']['lon'],
             'odometer': odometer,
-            'time' : carstatus['time']
+            'time': carstatus['time']
         }
         loc = homelocation.split(";")
         homelat = float(loc[0])
@@ -76,7 +76,7 @@ def initialise(p_email, p_password, p_pin, p_vin, p_abrp_token, p_abrp_carmodel,
     email = p_email
     password = p_password
     vin = p_vin
-    pin = ('0000' + (str(p_pin) if isinstance(p_pin,int) else p_pin))[-4:]
+    pin = ('0000' + (str(p_pin) if isinstance(p_pin, int) else p_pin))[-4:]
     abrp_token = p_abrp_token
     abrp_carmodel = p_abrp_carmodel
     WeatherApiKey = p_weather_api_key
@@ -108,12 +108,15 @@ def pollcar(manualForcePoll):
     # return as [updated,[carstatus],[odometer],[location]]
     # return False if it fails (behaves as if info did not change)
     global oldstatustime, oldpolltime, forcepollinterval, charginginterval, pollcounter
+    # reset pollcounter at start of day
+    break_point = "start poll procedure"  # breakpoint
+    carstatus = "empty car status"
+    if oldpolltime.date() != datetime.now().date(): pollcounter = 0
     parsed_status = {}
     updated = False
     afstand = 0
     googlelocation = ''
     try:
-        break_point = "start poll procedure"  # breakpoint
         pollcounter += 1
         carstatus = api_get_status(False)
         break_point = "got status"
@@ -134,13 +137,13 @@ def pollcar(manualForcePoll):
             forcedpolltimer = False
             if oldpolltime == '': forcedpolltimer = True  # first run
             else:
-                if (float((datetime.now() - oldpolltime).total_seconds()) >= random.uniform(0.75,1.5)*forcepollinterval): forcedpolltimer = True
+                if (float((datetime.now() - oldpolltime).total_seconds()) >= random.uniform(0.75, 1.5)*forcepollinterval): forcedpolltimer = True
                 else:
                     if carstatus['evStatus']['batteryCharge']:
-                        if (float((datetime.now() - oldpolltime).total_seconds()) >= random.uniform(0.75,1.5)*charginginterval) : forcedpolltimer = True
+                        if (float((datetime.now() - oldpolltime).total_seconds()) >= random.uniform(0.75, 1.5)*charginginterval): forcedpolltimer = True
 
             break_point = "Before checking refresh conditions"
-            if sleepmodecheck or forcedpolltimer or manualForcePoll or carstatus['engine'] :
+            if sleepmodecheck or forcedpolltimer or manualForcePoll or carstatus['engine']:
                 strings = ["sleepmodecheck", "forcedpolltimer", "manualForcePoll", "engine", 'charging']
                 conditions = [sleepmodecheck, forcedpolltimer, manualForcePoll, carstatus['engine'], carstatus['evStatus']['batteryCharge']]
                 truecond = ''
@@ -180,17 +183,19 @@ def pollcar(manualForcePoll):
                         parsed_status, afstand, googlelocation = process_data(carstatus, location, odometer)
     except:
         oldpolltime = datetime.now()
-        logging.info('pollcount: %s', pollcounter)
         logging.error('error in poll procedure, breakpoint: %s', break_point)
         logging.error('carstatus: %s', carstatus)
-    logging.info('pollcount: %s', pollcounter)
+    logging.debug('pollcount: %s', pollcounter)
     return updated, parsed_status, afstand, googlelocation
+
 
 def setcharge(command):
     return api_set_charge(command)
 
+
 def lockdoors(command):
     return api_set_lock(command)
 
-def setairco (action, temp):
-    return api_set_hvac(action,temp,False,False)
+
+def setairco(action, temp):
+    return api_set_hvac(action, temp, False, False)

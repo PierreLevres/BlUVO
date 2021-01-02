@@ -47,7 +47,5 @@ p_charginginterval = 60 # forces application to poll actively every so many minu
 
 p_heartbeatinterval = 30 # forces application to read from cache every so many minutes
 
-p_URLphoneincar= 'url to return information to an external server if eg your phone is plugged into the car or unplugged'
-
 <div>Icons made by <a href="https://www.flaticon.com/authors/darius-dan" title="Darius Dan">Darius Dan</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>
 <div>Icons made by <a href="https://flat-icons.com/" title="Flat Icons">Flat Icons</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>

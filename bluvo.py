@@ -1,5 +1,6 @@
 import time
 import logging
+import pickle
 import requests
 import json
 import consolemenu
@@ -44,23 +45,17 @@ if initsuccess:
         if x == 6:
             print(x)
             while True:
-                try:  # read flag of phone in car from or whereever you want
-                    session = requests.Session()
-                    response = session.get(p_URLphoneincar)
-                    response = json.loads(response.text)
-                    manualForcePoll = response['result'][0]['Status'] == 'On'
+                # read semaphore flag
+                try:
+                    with open('semaphore.pkl', 'rb') as f:
+                        manualForcePoll = pickle.load(f)
                 except:
-                    logging.error('error in phone in car flag')
                     manualForcePoll = False
                 updated, parsedStatus, afstand, googlelocation = pollcar(manualForcePoll)
+                # clear semaphore flag
                 manualForcePoll = False
-                #                manualforcepoll, updated, afstand, heading, speed, odometer, googlelocation, rangeleft, soc, charging, trunkopen, doorlock, driverdooropen, soc12v, status12v = pollcar(phoneincarflag)
-                # TODO reset manualforcepoll to off
-                # if not manualforcepoll:
-                #    session = requests.Session()
-                #    response = session.get(p_URLphoneincar)
-                #   response = json.loads(response.text)
-                #    phoneincarflag = response['result'][0]['Status'] == 'On'
+                with open('semaphore.pkl', 'wb') as f:
+                    pickle.dump([manualForcePoll], f)
 
                 if updated:
                     print('afstand van huis, rijrichting, snelheid en km-stand: ', afstand, ' / ',

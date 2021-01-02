@@ -10,5 +10,4 @@ p_homelocation="52.0934239 ; 4.3443689"
 p_forcepollinterval = 120
 p_charginginterval = 30
 p_heartbeatinterval = 30
-p_URLphoneincar= 'http://compter.domain.tld/astringtoindicatethephoneisinthecar'
-*enter parameters and rename file to params.py*
+# enter parameters and rename file to params.py
