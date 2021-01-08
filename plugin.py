@@ -9,7 +9,7 @@
         A plugin for Kia UVO and Hyundai Bluelink EV's (generally MY2020 and beyond). Use at own risk!
         <br/>
         This plugin will communicate with servers of Kia and Hyundai and through them with your car.
-        Polling your car means draining battery and worst case, an empty battery.
+        Polling your car means draining 12V battery and worst case, an empty battery.
         Educate yourself by googling "auxiliary battery drain Niro Kona Soul"
         <br/><br/>
         Email, Password, Pin are same as in you Bluelink or UVO app. VIN is optional, only needed if you have more than one car on your account.<br/>
@@ -30,8 +30,8 @@
         If you poll the car all the time, when not driving or not charging, your 12V battery may be drained, depending on the settings of your car to charge the auxiliary battery.
         There is no way for the plugin to determine if you start driving or charging other than polling the car. To save draining and yet to enable polling two mechanisms are implemented:
         <ul style="list-style-type:square">
-            <li>Forced poll interval - Polls the car actively every x minutes. Default 60 (1 hour). You might want to change it to 999 (once a week approx.).</li>
-            <li>Watching the domoticz "FlagInCar"-devices. Car will be polled if that flag is set to 1. You may want to define a timer on that flag to turn it off automatically.
+            <li>Forced poll interval - Polls the car actively every x minutes, slightly randomized. Recommended 60 (1 hour). You might want to change it to 999 (once a week approx.).</li>
+            <li>Watching the domoticz "FlagInCar"-devices. Car will be polled if that flag is set to 1. Flag will be turned off, once the data is read from the car.
                 If you use iOS you can achieve enabling and disabling this flag by iOS Shortcuts when plugin in and out of Apple Carplay. In the following example 84.73.62.51:1234 is the external server and port of your Domoticz server, and 456 is the IDX of the FlagInCar device (see Domoticz devices tab): <br/>http://84.73.62.51:1234/json.htm?type=command&amp;param=udevice&amp;idx=456&amp;nvalue=1 : URL to open when you plug into Apple Carplay.
                 <br/>http://84.73.62.51:1234/json.htm?type=command&amp;param=udevice&amp;idx=456&amp;nvalue=0 : URL to open when you remove it from Apple Carplay.</li>
         </ul>

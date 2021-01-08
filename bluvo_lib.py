@@ -112,10 +112,10 @@ def refresh_access_token():
 
                 return True
             except:
-                api_error('Refresh token failed: ' + str(response.status_code))
+                api_error('Refresh token failed: ' + response)
                 return False
         else:
-            api_error('Refresh token failed: ' + str(response.status_code))
+            api_error('Refresh token failed: ' + str(response.status_code) + response.text)
             return False
     return True
 
@@ -145,10 +145,10 @@ def enter_pin():
                           controlToken[:40], response['expiresTime'], controlTokenExpiresAt)
             return True
         except:
-            api_error('NOK pin. Error: ' + str(response.status_code))
+            api_error('NOK pin. Error: ' + response)
             return False
     else:
-        api_error('NOK pin. Error: ' + str(response.status_code))
+        api_error('NOK pin. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -196,14 +196,14 @@ def login(car_brand, email2, password2, pin2, vin2):
             logging.debug(data)
             response = requests.post(url, json=data, headers=headers)
             if response.status_code != 200:
-                api_error('NOK deviceID. Error: ' + str(response.status_code))
+                api_error('NOK deviceID. Error: ' + str(response.status_code) + response.text)
                 return False
             try:
                 response = json.loads(response.text)
                 deviceId = response['resMsg']['deviceId']
                 logging.info("deviceId %s", deviceId)
             except:
-                api_error('NOK login. Error in parsing /signing request')
+                api_error('NOK login. Error in parsing /signing request' + response)
                 return False
 
             # ---cookies----------------------------------
@@ -211,7 +211,7 @@ def login(car_brand, email2, password2, pin2, vin2):
             session = requests.Session()
             response = session.get(url)
             if response.status_code != 200:
-                api_error('NOK cookie for login. Error: ' + str(response.status_code))
+                api_error('NOK cookie for login. Error: ' + str(response.status_code) + response.text)
                 return False
 
             cookies = session.cookies.get_dict()
@@ -256,7 +256,7 @@ def login(car_brand, email2, password2, pin2, vin2):
             data = {"email": email, "password": password}
             response = requests.post(url, json=data, headers=headers, cookies=cookies)
             if response.status_code != 200:
-                api_error('NOK login. Error: ' + str(response.status_code))
+                api_error('NOK login. Error: ' + str(response.status_code) + response.text)
                 return False
             try:
                 response = json.loads(response.text)
@@ -265,7 +265,7 @@ def login(car_brand, email2, password2, pin2, vin2):
                 authcode = ''.join(parse_qs(parsed.query)['code'])
                 logging.info("authCode %s", authcode)
             except:
-                api_error('NOK login. Error in parsing /signing request')
+                api_error('NOK login. Error in parsing /signing request' + response)
                 return False
 
             # ---get accesstoken----------------------------------
@@ -283,7 +283,7 @@ def login(car_brand, email2, password2, pin2, vin2):
             data = 'redirect_uri=' + BaseURL + '/api/v1/user/oauth2/redirect&code=' + authcode + '&grant_type=authorization_code'
             response = requests.post(url, data=data, headers=headers)
             if response.status_code != 200:
-                api_error('NOK token. Error: ' + str(response.status_code))
+                api_error('NOK token. Error: ' + str(response.status_code) + response.text)
                 return False
             try:
                 response = json.loads(response.text)
@@ -292,7 +292,7 @@ def login(car_brand, email2, password2, pin2, vin2):
                 accessTokenExpiresAt = datetime.now() + timedelta(seconds=response['expires_in'])
                 logging.info("accesstoken %s, refrestoken %s expiresAt %s", accessToken, refreshToken, accessTokenExpiresAt)
             except:
-                api_error('NOK login. Error in parsing /token request')
+                api_error('NOK login. Error in parsing /token request' + response)
                 return False
             # notification/register
 
@@ -319,7 +319,7 @@ def login(car_brand, email2, password2, pin2, vin2):
             }
             response = requests.get(url, headers=headers, cookies=cookies)
             if response.status_code != 200:
-                api_error('NOK vehicles. Error: ' + str(response.status_code))
+                api_error('NOK vehicles. Error: ' + str(response.status_code) + response.text)
                 return False
             try:
                 response = json.loads(response.text)
@@ -357,7 +357,7 @@ def login(car_brand, email2, password2, pin2, vin2):
                         vehicle['vin'] = response['vin']
                         vehicle['generation'] = response['modelYear']
                     except:
-                        api_error('NOK login. Error in getting profile of vehicle: ' + vehicle)
+                        api_error('NOK login. Error in getting profile of vehicle: ' + vehicle + response)
                         return False
                     if vehicle['vin'] == vin: vehicleId = vehicle['vehicleId']
                 if vehicleId is None:
@@ -368,7 +368,7 @@ def login(car_brand, email2, password2, pin2, vin2):
             with open('session.pkl', 'wb') as f:
                 pickle.dump([controlToken, accessToken, refreshToken, controlTokenExpiresAt, accessTokenExpiresAt, deviceId, vehicleId, cookies],f)
         except:
-            api_error('Login failed '+url)
+            api_error('Login failed '+url + response.text)
             return False
         # the normal startup routine of the app is
         # profile
@@ -402,14 +402,14 @@ def api_get_valetmode():
     }
     response = requests.get(url, headers=headers, cookies=cookies)
     if response.status_code == 200:
-        response = json.loads(response.text)
         try:
+            response = json.loads(response.text)
             return response['resMsg']['valetMode']
         except ValueError:
-            api_error('NOK Parsing valetmode: ' + str(response))
+            api_error('NOK Parsing valetmode: ' + response)
             return False
     else:
-        api_error('NOK requesting valetmode. Error: ' + str(response.status_code))
+        api_error('NOK requesting valetmode. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -430,14 +430,14 @@ def api_get_parklocation():
     }
     response = requests.get(url, headers=headers, cookies=cookies)
     if response.status_code == 200:
-        response = json.loads(response.text)
         try:
+            response = json.loads(response.text)
             return response['resMsg']
         except ValueError:
-            api_error('NOK Parsing location park: ' + str(response))
+            api_error('NOK Parsing location park: ' + response)
             return False
     else:
-        api_error('NOK requesting location park. Error: ' + str(response.status_code))
+        api_error('NOK requesting location park. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -458,14 +458,14 @@ def api_get_finaldestination():
     }
     response = requests.get(url, headers=headers, cookies=cookies)
     if response.status_code == 200:
-        response = json.loads(response.text)
         try:
+            response = json.loads(response.text)
             return response['resMsg']
         except ValueError:
-            api_error('NOK Parsing final destination: ' + str(response))
+            api_error('NOK Parsing final destination: ' + response)
             return False
     else:
-        api_error('NOK requesting final destination. Error: ' + str(response.status_code))
+        api_error('NOK requesting final destination. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -489,7 +489,7 @@ def api_set_wakeup():
     if response.status_code == 200:
         return True
     else:
-        api_error('NOK prewakeup. Error: ' + str(response.status_code))
+        api_error('NOK prewakeup. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -509,18 +509,18 @@ def api_get_status(refresh=False, raw=True):
     response = requests.get(url, headers=headers)
     logging.debug('got status')
     if response.status_code == 200:
-        response = json.loads(response.text)
-        # a refresh==True returns a short list, a refresh==False returns a long list. If raw is true, return the entire string
         try:
+            response = json.loads(response.text)
+            # a refresh==True returns a short list, a refresh==False returns a long list. If raw is true, return the entire string
             logging.debug(response['resMsg'])
             if raw: return response['resMsg']
             if not refresh: response = response['resMsg']['vehicleStatusInfo']['vehicleStatus']
             return response
         except:
-            api_error('NOK parsing status: ' + str(response))
+            api_error('NOK parsing status: ' + response)
             return False
     else:
-        api_error('NOK requesting status. Error: ' + str(response.status_code))
+        api_error('NOK requesting status. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -536,14 +536,14 @@ def api_get_odometer():
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        response = json.loads(response.text)
         try:
+            response = json.loads(response.text)
             return response['resMsg']['vehicleStatusInfo']['odometer']['value']
         except ValueError:
-            api_error('NOK Parsing odometer: ' + str(response))
+            api_error('NOK Parsing odometer: ' + response)
             return False
     else:
-        api_error('NOK requesting odometer. Error: ' + str(response.status_code))
+        api_error('NOK requesting odometer. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -560,14 +560,14 @@ def api_get_location():
 
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        response = json.loads(response.text)
         try:
+            response = json.loads(response.text)
             return response['resMsg']
         except ValueError:
-            api_error('NOK Parsing location: ' + str(response))
+            api_error('NOK Parsing location: ' + response)
             return False
     else:
-        api_error('NOK requesting location. Error: ' + str(response.status_code))
+        api_error('NOK requesting location. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -606,7 +606,7 @@ def api_set_lock(action='close'):
         logging.debug("Send (un)lock command to Vehicle")
         return True
     else:
-        api_error('Error sending lock. Error: ' + str(response.status_code) + url)
+        api_error('Error sending lock. Error: ' + str(response.status_code)  + response.text)
         return False
 
 
@@ -642,7 +642,7 @@ def api_set_charge(action='stop'):
         logging.debug("Send (stop) charge command to Vehicle")
         return True
     else:
-        api_error('Error sending start/stop charge. Error: ' + str(response.status_code))
+        api_error('Error sending start/stop charge. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -696,7 +696,7 @@ def api_set_hvac(action='stop', temp='21.0', bdefrost=False, bheating=False):
         logging.debug("Send HVAC setting to Vehicle")
         return True
     else:
-        api_error('Error sending HVAC settings. Error: ' + str(response.status_code))
+        api_error('Error sending HVAC settings. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -713,13 +713,13 @@ def api_get_chargeschedule():
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        response = json.loads(response.text)
         try:
+            response = json.loads(response.text)
             return response['resMsg']
         except ValueError:
-            api_error('NOK Parsing charge schedule: ' + str(response))
+            api_error('NOK Parsing charge schedule: ' + response)
     else:
-        api_error('NOK requesting charge schedule. Error: ' + str(response.status_code))
+        api_error('NOK requesting charge schedule. Error: ' + str(response.status_code) + response.text)
     return False
 
 
@@ -823,7 +823,7 @@ def api_set_chargelimits(limit_fast=80, limit_slow=100):
     if response.status_code == 200:
         return True
     else:
-        api_error('NOK setting charge limits. Error: ' + response.text + str(response.status_code))
+        api_error('NOK setting charge limits. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -842,7 +842,7 @@ def api_set_navigation(poi_info_list):
     if response.status_code == 200:
         return True
     else:
-        api_error('NOK setting navigation. Error: ' + str(response.status_code))
+        api_error('NOK setting navigation. Error: ' + str(response.status_code) + response.text)
         return False
     #TODO test what will happen if you send an array of 2 or more POI's, will it behave like a route-plan ?
 
@@ -859,14 +859,14 @@ def api_get_userinfo():
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        response = json.loads(response.text)
         try:
+            response = json.loads(response.text)
             return response
         except ValueError:
-            api_error('NOK Getting user info: ' + str(response))
+            api_error('NOK Getting user info: ' + response)
             return False
     else:
-        api_error('NOK Getting user info. Error: ' + str(response.status_code))
+        api_error('NOK Getting user info. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -882,8 +882,8 @@ def api_get_services():
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        response = json.loads(response.text)
         try:
+            response = json.loads(response.text)
             return response['resMsg']['serviceCategorys']
             # returns array of booleans for each service in the list
             # 0= categoryname:1 = GIS
@@ -892,10 +892,10 @@ def api_get_services():
             # 3= categoryname:4 = Vehicle Status (report, trips)
             # 4= categoryname:5 = Remote
         except ValueError:
-            api_error('NOK Getting active services: ' + str(response))
+            api_error('NOK Getting active services: ' + response)
             return False
     else:
-        api_error('NOK Getting active services. Error: ' + str(response.status_code))
+        api_error('NOK Getting active services. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -922,14 +922,14 @@ def api_set_activeservices(servicesonoff=[]):
         data['serviceCategorys'][i]['categoryStatus'] = service_on_off
     response = requests.post(url, data=data, headers=headers)
     if response.status_code == 200:
-        response = json.loads(response.text)
         try:
+            response = json.loads(response.text)
             return response['resMsg']
         except ValueError:
-            api_error('NOK Getting active services: ' + str(response))
+            api_error('NOK Getting active services: ' + response)
             return False
     else:
-        api_error('NOK Getting active services. Error: ' + str(response.status_code))
+        api_error('NOK Getting active services. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -946,14 +946,14 @@ def api_get_monthlyreport(month):
     data={'setRptMonth': "202006"}
     response = requests.post(url, json=data, headers=headers)
     if response.status_code == 200:
-        response = json.loads(response.text)
         try:
+            response = json.loads(response.text)
             return response['resMsg']['monthlyReport']
         except ValueError:
-            api_error('NOK Getting montly report: ' + str(response))
+            api_error('NOK Getting montly report: ' + response)
             return False
     else:
-        api_error('NOK Getting monthlyreport. Error: ' + str(response.status_code))
+        api_error('NOK Getting monthlyreport. Error: ' + str(response.status_code) + response.text)
         return False
 
 
@@ -969,14 +969,14 @@ def api_get_monthlyreportlist():
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        response = json.loads(response.text)
         try:
+            response = json.loads(response.text)
             return response['resMsg']['monthlyReport']
         except ValueError:
-            api_error('NOK Getting montly reportlist: ' + str(response))
+            api_error('NOK Getting montly reportlist: ' + response)
             return False
     else:
-        api_error('NOK Getting monthlyreportlist. Error: ' + str(response.status_code))
+        api_error('NOK Getting monthlyreportlist. Error: ' + str(response.status_code) + response.text)
         return False
 
 # TODO implement the other services
