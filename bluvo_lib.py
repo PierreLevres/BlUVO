@@ -6,13 +6,14 @@ import pickle
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
 from datetime import datetime, timedelta
+from time import time
 
 global ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL, UserAgentPreLogon, UserAgent, ContentType, ContentJSON, AcceptLanguage, AcceptLanguageShort, AcceptEncoding, Connection, Accept, CcspApplicationId
 global controlToken, controlTokenExpiresAt
 global accessToken, accessTokenExpiresAt, refreshToken
 global deviceId, vehicleId, cookies
 global email, password, pin, vin
-
+global stamp
 
 def api_error(message):
     logger = logging.getLogger('root')
@@ -23,7 +24,7 @@ def api_error(message):
 def temp2hex(temp):
     if temp <= 14: return "00H"
     if temp >= 30: return "20H"
-    return str.upper(hex(round(float(temp) * 2) - 28).split("x")[1]) + "H"  # rounds to .5 and transforms to hex
+    return str.upper(hex(round(float(temp) * 2) - 28).split("x")[1]) + "H"  # rounds to .5 and transforms to Kia-hex (cut off 0x and add H at the end)
 
 
 def hex2temp(hextemp):
@@ -32,9 +33,15 @@ def hex2temp(hextemp):
     if temp >= 30: return 30
     return temp
 
+def createStamp(carbrand):
+    import random
+    filename = carbrand+'list.txt'
+    with open(carbrand+'list.txt') as f:
+        lines = f.readlines()
+    return random.choice(lines).rstrip("\n")
 
 def get_constants(car_brand):
-    global ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL, UserAgentPreLogon, UserAgent, ContentType, ContentJSON, AcceptLanguage, AcceptLanguageShort, AcceptEncoding, Connection, Accept, CcspApplicationId
+    global stamp, ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL, UserAgentPreLogon, UserAgent, ContentType, ContentJSON, AcceptLanguage, AcceptLanguageShort, AcceptEncoding, Connection, Accept, CcspApplicationId
     if car_brand == 'kia':
         ServiceId = 'fdc85c00-0a2f-4c64-bcb4-2cfb1500730a'
         BasicToken = 'Basic ZmRjODVjMDAtMGEyZi00YzY0LWJjYjQtMmNmYjE1MDA3MzBhOnNlY3JldA=='
@@ -46,11 +53,12 @@ def get_constants(car_brand):
     else:
         api_error('Carbrand not OK.')
         return False
-
+    stamp = createStamp(car_brand)
     BaseHost = 'prd.eu-ccapi.' + car_brand + '.com:8080'
 
     UserAgentPreLogon = 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_1 like Mac OS X) AppleWebKit/604.3.5 (KHTML, like Gecko) Version/11.0 Mobile/15B92 Safari/604.1'
     UserAgent = 'UVO_REL/1.5.1 (iPhone; iOS 14.0.1; Scale/2.00)'
+    UserAgent = 'UVO_Store/1.5.9 (iPhone; iOS 14.4; Scale/3.00)'
     Accept = '*/*'
     CcspApplicationId = '8464b0bf-4932-47b0-90ed-555fef8f143b'
     AcceptLanguageShort = 'nl-nl'
@@ -91,8 +99,10 @@ def refresh_access_token():
             'Accept': Accept,
             'User-Agent': UserAgent,
             'Accept-Language': AcceptLanguage,
+            'Stamp': stamp,
             'Authorization': BasicToken
             }
+        logging.debug(headers)
         data = 'redirect_uri=' + BaseURL + '/api/v1/user/oauth2/redirect&refresh_token=' + refreshToken + '&grant_type=refresh_token'
         # response = requests.post(url, data=data, headers=headers, throwHttpErrors=False)
         response = requests.post(url, data=data, headers=headers)
@@ -131,6 +141,7 @@ def enter_pin():
         'Accept': Accept,
         'User-Agent': UserAgent,
         'Accept-Language': AcceptLanguage,
+        'Stamp': stamp,
         'Authorization': accessToken
     }
     data = {"deviceId": deviceId, "pin": pin}
@@ -165,8 +176,7 @@ def login(car_brand, email2, password2, pin2, vin2):
     url = "no URL set yet"
     logging.info('entering login %s %s', car_brand, email2)
     get_constants(car_brand)
-    logging.debug('constants %s %s %s %s %s', ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL)
-
+    logging.debug('constants %s %s %s %s %s %s', ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL, stamp)
     try:
         with open('session.pkl', 'rb') as f:
             controlToken, accessToken, refreshToken, controlTokenExpiresAt, accessTokenExpiresAt, deviceId, vehicleId, cookies = pickle.load(f)
@@ -177,35 +187,6 @@ def login(car_brand, email2, password2, pin2, vin2):
         controlTokenExpiresAt = accessTokenExpiresAt = datetime(1970, 1, 1, 0, 0, 0)
 
         try:
-            # ---get deviceid----------------------------------
-            url = BaseURL + '/api/v1/spa/notifications/register'
-            headers = {
-                'ccsp-service-id': ServiceId,
-                'cssp-application-id': CcspApplicationId,
-                'Content-Type': ContentJSON,
-                'Host': BaseHost,
-                'Connection': Connection,
-                'Accept': Accept,
-                'Accept-Encoding': AcceptEncoding,
-                'Accept-Language': AcceptLanguage,
-                'User-Agent': UserAgent}
-            # what to do with the cookie? account=Nj<snip>>689c3
-            # what to do with the right PushRegId
-            data = {"pushRegId": "0827a4e6c94faa094fe20033ff7fdbbd3a7a789727546f2645a0f547f5db2a58", "pushType": "APNS", "uuid": str(uuid.uuid1())}
-            logging.debug(headers)
-            logging.debug(data)
-            response = requests.post(url, json=data, headers=headers)
-            if response.status_code != 200:
-                api_error('NOK deviceID. Error: ' + str(response.status_code) + response.text)
-                return False
-            try:
-                response = json.loads(response.text)
-                deviceId = response['resMsg']['deviceId']
-                logging.info("deviceId %s", deviceId)
-            except:
-                api_error('NOK login. Error in parsing /signing request' + response)
-                return False
-
             # ---cookies----------------------------------
             url = BaseURL + '/api/v1/user/oauth2/authorize?response_type=code&client_id=' + ServiceId + '&redirect_uri=' + BaseURL + '/api/v1/user/oauth2/redirect&state=test&lang=en'
             session = requests.Session()
@@ -230,12 +211,43 @@ def login(car_brand, email2, password2, pin2, vin2):
                 'Connection': Connection,
                 'Accept': Accept,
                 'User-Agent': UserAgentPreLogon,
-                'Referer': BaseURL+'/web/v1/user/authorize?lang=en&cache=reset',
+                'Referer': BaseURL + '/web/v1/user/authorize?lang=en&cache=reset',
                 'Accept-Language': AcceptLanguageShort,
                 'Accept-Encoding': AcceptEncoding
             }
             data = {"lang": "en"}
             requests.post(url, json=data, headers=headers, cookies=cookies)
+
+            # ---get deviceid----------------------------------
+            url = BaseURL + '/api/v1/spa/notifications/register'
+            headers = {
+                'ccsp-service-id': ServiceId,
+                'cssp-application-id': CcspApplicationId,
+                'Content-Type': ContentJSON,
+                'Host': BaseHost,
+                'Connection': Connection,
+                'Accept': Accept,
+                'Accept-Encoding': AcceptEncoding,
+                'Accept-Language': AcceptLanguage,
+                'Stamp': stamp,
+                'User-Agent': UserAgent}
+            # what to do with the cookie? account=Nj<snip>>689c3
+            # what to do with the right PushRegId
+            data = {"pushRegId": "0827a4e6c94faa094fe20033ff7fdbbd3a7a789727546f2645a0f547f5db2a58", "pushType": "APNS", "uuid": str(uuid.uuid1())}
+            logging.debug(headers)
+            logging.debug(data)
+            response = requests.post(url, json=data, headers=headers)
+            if response.status_code != 200:
+                api_error('NOK deviceID. Error: ' + str(response.status_code) + response.text)
+                return False
+            try:
+                response = json.loads(response.text)
+                deviceId = response['resMsg']['deviceId']
+                logging.info("deviceId %s", deviceId)
+            except:
+                api_error('NOK login. Error in parsing /signing request' + response)
+                return False
+
 
             # get session
             # delete session
@@ -251,6 +263,7 @@ def login(car_brand, email2, password2, pin2, vin2):
                 'User-Agent': UserAgentPreLogon,
                 'Referer': BaseURL+'/web/v1/user/signin',
                 'Accept-Language': AcceptLanguageShort,
+                'Stamp': stamp,
                 'Accept-Encoding': AcceptEncoding
             }
             data = {"email": email, "password": password}
@@ -278,6 +291,7 @@ def login(car_brand, email2, password2, pin2, vin2):
                 'Accept': Accept,
                 'User-Agent': UserAgent,
                 'Accept-Language': AcceptLanguage,
+                'Stamp': stamp,
                 'Authorization': BasicToken
             }
             data = 'redirect_uri=' + BaseURL + '/api/v1/user/oauth2/redirect&code=' + authcode + '&grant_type=authorization_code'
@@ -315,6 +329,7 @@ def login(car_brand, email2, password2, pin2, vin2):
                 'User-Agent': UserAgent,
                 'Connection': Connection,
                 'Content-Type': ContentJSON,
+                'Stamp': stamp,
                 'ccsp-device-id': deviceId
             }
             response = requests.get(url, headers=headers, cookies=cookies)
@@ -348,6 +363,7 @@ def login(car_brand, email2, password2, pin2, vin2):
                         'User-Agent': UserAgent,
                         'Connection': Connection,
                         'Content-Type': ContentJSON,
+                        'Stamp': stamp,
                         'ccsp-device-id': deviceId
                     }
                     response = requests.get(url, headers=headers, cookies=cookies)
@@ -366,7 +382,7 @@ def login(car_brand, email2, password2, pin2, vin2):
             else: vehicleId = vehicles[0]['vehicleId']
             logging.info("vehicleID %s", vehicleId)
             with open('session.pkl', 'wb') as f:
-                pickle.dump([controlToken, accessToken, refreshToken, controlTokenExpiresAt, accessTokenExpiresAt, deviceId, vehicleId, cookies],f)
+                pickle.dump([controlToken, accessToken, refreshToken, controlTokenExpiresAt, accessTokenExpiresAt, deviceId, vehicleId, cookies, stamp],f)
         except:
             api_error('Login failed '+url + response.text)
             return False
@@ -398,6 +414,7 @@ def api_get_valetmode():
         'User-Agent': UserAgent,
         'Connection': Connection,
         'Content-Type': ContentJSON,
+        'Stamp': stamp,
         'ccsp-device-id': deviceId
     }
     response = requests.get(url, headers=headers, cookies=cookies)
@@ -426,6 +443,7 @@ def api_get_parklocation():
         'User-Agent': UserAgent,
         'Connection': Connection,
         'Content-Type': ContentJSON,
+        'Stamp': stamp,
         'ccsp-device-id': deviceId
     }
     response = requests.get(url, headers=headers, cookies=cookies)
@@ -454,6 +472,7 @@ def api_get_finaldestination():
         'User-Agent': UserAgent,
         'Connection': Connection,
         'Content-Type': ContentJSON,
+        'Stamp': stamp,
         'ccsp-device-id': deviceId
     }
     response = requests.get(url, headers=headers, cookies=cookies)
@@ -482,6 +501,7 @@ def api_set_wakeup():
         'User-Agent': UserAgent,
         'Connection': Connection,
         'Content-Type': ContentJSON,
+        'Stamp': stamp,
         'ccsp-device-id': deviceId
     }
     data = {"action": "prewakeup", "deviceId": deviceId}
@@ -504,6 +524,7 @@ def api_get_status(refresh=False, raw=True):
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     response = requests.get(url, headers=headers)
@@ -532,6 +553,7 @@ def api_get_odometer():
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     response = requests.get(url, headers=headers)
@@ -555,6 +577,7 @@ def api_get_location():
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
 
@@ -597,6 +620,7 @@ def api_set_lock(action='close'):
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
 
@@ -633,6 +657,7 @@ def api_set_charge(action='stop'):
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
 
@@ -678,6 +703,7 @@ def api_set_hvac(action='stop', temp='21.0', bdefrost=False, bheating=False):
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     data = {
@@ -709,6 +735,7 @@ def api_get_chargeschedule():
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     response = requests.get(url, headers=headers)
@@ -796,6 +823,7 @@ def api_set_chargeschedule(schedule1, schedule2, tempset, chargeschedule):
                 'ccsp-application-id': CcspApplicationId,
                 'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
                 'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON,
+                'Stamp': stamp,
                 'ccsp-device-id': deviceId
             }
             data['deviceId'] = deviceId
@@ -815,6 +843,7 @@ def api_set_chargelimits(limit_fast=80, limit_slow=100):
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     data = {'targetSOClist': [{'plugType': 0, 'targetSOClevel': int(limit_fast)},
@@ -834,6 +863,7 @@ def api_set_navigation(poi_info_list):
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     data = poi_info_list
@@ -855,6 +885,7 @@ def api_get_userinfo():
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     response = requests.get(url, headers=headers)
@@ -878,6 +909,7 @@ def api_get_services():
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     response = requests.get(url, headers=headers)
@@ -913,6 +945,7 @@ def api_set_activeservices(servicesonoff=[]):
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     data=[]
@@ -941,6 +974,7 @@ def api_get_monthlyreport(month):
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     data={'setRptMonth': "202006"}
@@ -965,6 +999,7 @@ def api_get_monthlyreportlist():
         'Host': BaseHost, 'Accept': Accept, 'Authorization': controlToken,
         'ccsp-application-id': CcspApplicationId,
         'Accept-Language': AcceptLanguage, 'Accept-Encoding': AcceptEncoding, 'offset': '2',
+        'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
     response = requests.get(url, headers=headers)
