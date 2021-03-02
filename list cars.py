@@ -1,5 +1,6 @@
 import requests
 import json
+#lists the cars brands and types from the ABRP API
 url = "https://api.iternio.com/1/tlm/get_carmodels_list"
 payload = {}
 headers = {}
