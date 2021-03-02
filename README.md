@@ -2,6 +2,7 @@
  
 BlUvo Plugin
 An application or Domoticz plugin for Kia UVO and Hyundai Bluelink EV's (generally MY2020 and beyond). Use at own risk!
+If running from Domoticz, be sure to move kialist.txt and hyundailist.txt into your domoticz homefolder.
 
 This plugin will communicate with servers of Kia and Hyundai and through them with your car. Polling your car means draining battery and worst case, an empty battery. Educate yourself by googling "auxiliary battery drain Niro Kona Soul"
 

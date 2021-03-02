@@ -1,14 +1,16 @@
 #           UVO Plugin
 #
-#           Author:     plips, 2020
+#           Author:     pierre levres, 2020
 #
 """
-<plugin key="bluvo" name="Kia UVO and Hyundai Bluelink" author="plips" version="0.1.0">
+<plugin key="bluvo" name="Kia UVO and Hyundai Bluelink" author="pierre levres" version="0.1.0">
     <description>
         <h2>BlUvo Plugin</h2>
         A plugin for Kia UVO and Hyundai Bluelink EV's (generally MY2020 and beyond). Use at own risk!
         <br/>
         This plugin will communicate with servers of Kia and Hyundai and through them with your car.
+        Be sure to move kialist.txt and hyundailist.txt into your domoticz homefolder.
+        <br/>
         Polling your car means draining 12V battery and worst case, an empty battery.
         Educate yourself by googling "auxiliary battery drain Niro Kona Soul"
         <br/><br/>
@@ -46,8 +48,11 @@
             <options>
                 <option label="Ioniq 28kWh" value="hyundai:ioniq:17:28:other"/>
                 <option label="Ioniq 38kWh" value="hyundai:ioniq:19:38:other"/>
+                <option label="Ioniq5" value="hyundai:ioniq5:22:74"/>
+
                 <option label="Kona 39kWh" value="hyundai:kona:19:39:other"/>
                 <option label="Kona 64kWh" value="hyundai:kona:19:64:other"/>
+                <option label="Kona 21 64kWh" value="hyundai:kona:21:64:other"/>
                 <option label="eNiro 39kWh" value="kia:niro:19:39:other"/>
                 <option label="eNiro 64kWh" value="kia:niro:19:64:other" default="true"/>
                 <option label="eSoul 39kWh" value="kia:soul:19:39"/>
