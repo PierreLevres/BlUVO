@@ -1,3 +1,4 @@
+#TODO add versioning
 import requests
 import uuid
 import json
@@ -118,7 +119,7 @@ def refresh_access_token():
                 with open('session.pkl', 'wb') as f:
                     pickle.dump(
                         [controlToken, accessToken, refreshToken, controlTokenExpiresAt, accessTokenExpiresAt, deviceId,
-                         vehicleId, cookies], f)
+                         vehicleId, cookies, stamp], f)
 
                 return True
             except:
@@ -179,7 +180,7 @@ def login(car_brand, email2, password2, pin2, vin2):
     logging.debug('constants %s %s %s %s %s %s', ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL, stamp)
     try:
         with open('session.pkl', 'rb') as f:
-            controlToken, accessToken, refreshToken, controlTokenExpiresAt, accessTokenExpiresAt, deviceId, vehicleId, cookies = pickle.load(f)
+            controlToken, accessToken, refreshToken, controlTokenExpiresAt, accessTokenExpiresAt, deviceId, vehicleId, cookies, stamp = pickle.load(f)
             logging.info('session read %s',accessTokenExpiresAt)
     except:
         logging.info('session not read from file, full login')
