@@ -169,7 +169,7 @@ def login(car_brand, email2, password2, pin2, vin2):
     global controlToken, controlTokenExpiresAt
     global accessToken, accessTokenExpiresAt, refreshToken
     global deviceId, vehicleId, cookies
-    global email, password, pin, vin
+    global email, password, pin, vin, stamp
     email = email2
     password = password2
     pin = pin2
