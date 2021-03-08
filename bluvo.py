@@ -9,7 +9,6 @@ from bluvo_lib import login, api_get_status, api_get_location, api_set_lock, api
     api_get_chargeschedule, api_set_chargelimits, api_set_navigation, api_get_services, api_get_userinfo,\
     api_get_monthlyreport, api_get_monthlyreportlist
 
-
 from params import *  # p_parameters are read
 
 global email, password, pin, vin, abrp_token, abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation
@@ -35,7 +34,7 @@ if initsuccess:
             print(x)
             if x == 0: api_set_lock('on')
             if x == 1: api_set_lock('off')
-            if x == 2: print(api_get_status(False))
+            if x == 2: print(api_get_status(False, True))
             if x == 3: print(api_get_status(False, False))
             if x == 4: print(api_get_status(True))
             if x == 5:
