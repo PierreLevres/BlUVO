@@ -122,22 +122,23 @@ class BasePlugin:
         if self.AFSTAND_ICON in Images: Domoticz.Debug("ID: " + str(Images[self.AFSTAND_ICON].ID))
         else:                           Domoticz.Image(AFSTAND_ICON+".zip").Create()
         '''
-        if (len(Devices) == 0):
-            Domoticz.Device(Unit=1, Type=113, Subtype=0 , Switchtype=3 , Name="km-stand").Create()
-            Domoticz.Device(Unit=2, Type=243, Subtype=31, Switchtype=0 , Name="range").Create()
-            Domoticz.Device(Unit=3, Type=244, Subtype=73, Switchtype=0 , Name="charging").Create()
-            Domoticz.Device(Unit=4, TypeName="Percentage"              , Name="soc").Create()
-            Domoticz.Device(Unit=5, TypeName="Percentage"              , Name="soc 12v").Create()
-            Domoticz.Device(Unit=6, Type=243, Subtype=31, Switchtype=0 , Name="status 12v").Create()
-            Domoticz.Device(Unit=7, Type=244, Subtype=73, Switchtype=11, Name="kofferbak").Create()
-            Domoticz.Device(Unit=8, Type=243, Subtype=31, Switchtype=0 , Name="afstand van huis").Create()
-            Domoticz.Device(Unit=9, Type=244, Subtype=73, Switchtype=0 , Name="force status update").Create()
-            Domoticz.Device(Unit=10, Type=244, Subtype=73, Switchtype=19 , Name="doors").Create()
-            Domoticz.Device(Unit=11, Type=242, Subtype=1,                  Name="temperature").Create()
-            Domoticz.Log("Devices created.")
-            if Parameters["SerialPort"] == "1":
-                Domoticz.Debugging(1)
-                DumpConfigToLog()
+
+        if (len(Devices) < 1): Domoticz.Device(Unit=1, Type=113, Subtype=0 , Switchtype=3 , Name="km-stand").Create()
+        if (len(Devices) < 2): Domoticz.Device(Unit=2, Type=243, Subtype=31, Switchtype=0 , Name="range").Create()
+        if (len(Devices) < 3): Domoticz.Device(Unit=3, Type=244, Subtype=73, Switchtype=0 , Name="charging").Create()
+        if (len(Devices) < 4): Domoticz.Device(Unit=4, TypeName="Percentage"              , Name="soc").Create()
+        if (len(Devices) < 5): Domoticz.Device(Unit=5, TypeName="Percentage"              , Name="soc 12v").Create()
+        if (len(Devices) < 6): Domoticz.Device(Unit=6, Type=243, Subtype=31, Switchtype=0 , Name="status 12v").Create()
+        if (len(Devices) < 7): Domoticz.Device(Unit=7, Type=244, Subtype=73, Switchtype=11, Name="kofferbak").Create()
+        if (len(Devices) < 8): Domoticz.Device(Unit=8, Type=243, Subtype=31, Switchtype=0 , Name="afstand van huis").Create()
+        if (len(Devices) < 9): Domoticz.Device(Unit=9, Type=244, Subtype=73, Switchtype=0 , Name="force status update").Create()
+        if (len(Devices) < 10): Domoticz.Device(Unit=10, Type=244, Subtype=73, Switchtype=19 , Name="doors").Create()
+        if (len(Devices) < 11): Domoticz.Device(Unit=11, Type=242, Subtype=1,                  Name="temperature").Create()
+# TODO add more (virtual) devices to control the car
+        #  Domoticz.Log("Devices created.")
+        if Parameters["SerialPort"] == "1":
+            Domoticz.Debugging(1)
+            DumpConfigToLog()
         p_email = Parameters["Username"]
         p_password = Parameters["Password"]
         p_pin = Parameters["Port"]
@@ -158,6 +159,7 @@ class BasePlugin:
         p_forcepollinterval = float(intervals[0])
         p_charginginterval = float(intervals[1])
         p_heartbeatinterval = float(intervals[2])
+
         heartbeatinterval, initsuccess = initialise(p_email, p_password, p_pin, p_vin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey, p_WeatherProvider, p_homelocation, p_forcepollinterval, p_charginginterval, p_heartbeatinterval)
         if initsuccess:
                 Domoticz.Heartbeat(15)

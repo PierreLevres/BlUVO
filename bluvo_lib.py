@@ -586,6 +586,7 @@ def api_get_location():
     if response.status_code == 200:
         try:
             response = json.loads(response.text)
+            print (response['resMsg'])
             return response['resMsg']
         except ValueError:
             api_error('NOK Parsing location: ' + response)

@@ -1,85 +1,41 @@
-import time
 import logging
-import pickle
-import requests
-import json
-from generic_lib import georeverse, geolookup
-from bluvo_main import initialise, pollcar
-from bluvo_lib import login, api_get_status, api_get_location, api_set_lock, api_set_hvac, api_set_charge, \
-    api_get_chargeschedule, api_set_chargelimits, api_set_navigation, api_get_services, api_get_userinfo,\
-    api_get_monthlyreport, api_get_monthlyreportlist
+from dacite import from_dict
 
-from params import *  # p_parameters are read
+from vehicle import EUvehicle
+from controller import EUcontroller
+from interface import BluelinkyConfig
 
-global email, password, pin, vin, abrp_token, abrp_carmodel, WeatherApiKey, WeatherProvider, homelocation
-global forcedpolltimer, heartbeatinterval, charginginterval
-global ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL
-global controlToken, controlTokenExpiresAt, accessToken, accessTokenExpiresAt, refreshToken
-global deviceId, vehicleId
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='bluvo.log',
-                    level=logging.DEBUG)
+class bluvo:
 
-menuoptions = ["0 Lock", "1 Unlock", "2 Status", "3 Status formatted", "4 Status refresh", "5 location", "6 loop status",
-               "7 Navigate to", '8 set Charge Limits', '9 get charge schedule', '10 get services', '11 exit']
-#mymenu = consolemenu.SelectionMenu(menuoptions)
-heartbeatinterval, initsuccess = initialise(p_email, p_password, p_pin, p_vin, p_abrp_token, p_abrp_carmodel, p_WeatherApiKey,
-                         p_WeatherProvider, p_homelocation, p_forcepollinterval, p_charginginterval,
-                         p_heartbeatinterval)
-if initsuccess:
-    while True:
-        [print(i) for i in menuoptions]
-        try:
-            x = int(input("Please Select:"))
-            print(x)
-            if x == 0: api_set_lock('on')
-            if x == 1: api_set_lock('off')
-            if x == 2: print(api_get_status(False, True))
-            if x == 3: print(api_get_status(False, False))
-            if x == 4: print(api_get_status(True))
-            if x == 5:
-                locatie = api_get_location()
-                if locatie:
-                    locatie = locatie['gpsDetail']['coord']
-                    print(georeverse(locatie['lat'], locatie['lon']))
-            if x == 6:
-                while True:
-                    # read semaphore flag
-                    try:
-                        with open('semaphore.pkl', 'rb') as f:
-                            manualForcePoll = pickle.load(f)
-                    except:
-                        manualForcePoll = False
-                    print(manualForcePoll)
-                    updated, parsedStatus, afstand, googlelocation = pollcar(manualForcePoll)
-                    # clear semaphore flag
-                    manualForcePoll = False
-                    with open('semaphore.pkl', 'wb') as f:
-                        pickle.dump(manualForcePoll, f)
+    def __init__(self, myConfig: BluelinkyConfig):
+        logging.debug(myConfig.username)
+        if myConfig.brand is None: myConfig.brand = 'kia'
+        logging.debug(myConfig.brand)
+        self._controller = EUcontroller(myConfig)
+#        self.login()
+#
+#    def login(self):
+        response = self._controller.login()
+        result = self._controller.getvehicles()
+        if result is not False:
+            self._vehicles = result
+            logging.debug('Found %s vehicles on the account', len(self._vehicles))
+#        return response
 
-                    if updated:
-                        print('afstand van huis, rijrichting, snelheid en km-stand: ', afstand, ' / ',
-                              parsedStatus['heading'], '/', parsedStatus['speed'], '/', parsedStatus['odometer'])
-                        print(googlelocation)
-                        print("range ", parsedStatus['range'], "soc: ", parsedStatus['chargeHV'])
-                        if parsedStatus['charging']: print("Laden")
-                        if parsedStatus['trunkopen']: print("kofferbak open")
-                        if not (parsedStatus['locked']): print("deuren van slot")
-                        if parsedStatus['dooropenFL']: print("bestuurdersportier open")
-                        print("soc12v ", parsedStatus['charge12V'], "status 12V", parsedStatus['status12V'])
-                        print("=============")
-                    time.sleep(heartbeatinterval)
-            if x == 7: print(api_set_navigation(geolookup(input("Press Enter address to navigate to..."))))
-            if x == 8:
-                invoer = input("Enter maximum for fast and slow charging (space or comma or semicolon or colon seperated)")
-                for delim in ',;:': invoer = invoer.replace(delim, ' ')
-                print(api_set_chargelimits(invoer.split()[0], invoer.split()[1]))
+    def getVehicles(self):
+        return self._controller.vehicles
 
-            if x == 9: print(json.dumps(api_get_chargeschedule(),indent=4))
-            if x == 10: print(api_get_services())
-            if x == 11: exit()
-            input("Press Enter to continue...")
-        except (ValueError) as err:
-            print("error in menu keuze")
-else:
-    logging.error("initialisation failed")
+    def getVehicle(self, inputvin = ""):
+        if len(self._vehicles) == 0:
+            logging.debug('NOK login. No vehicles in the account')
+            return False
+        elif len(self._vehicles) == 1:
+            return self._vehicles[0]
+        else:
+            vehicleId = None
+            for vehicle in self._vehicles:
+                if vehicle['vin'] == inputvin: return vehicle
+            if vehicleId is None:
+                logging.debug('NOK login. The VIN you entered is not in the vehicle list ' + inputvin)
+            return False

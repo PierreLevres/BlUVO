@@ -190,14 +190,11 @@ def pollcar(manualForcePoll):
     logging.debug('pollcount: %s', pollcounter)
     return updated, parsed_status, afstand, googlelocation
 
-
 def setcharge(command):
     return api_set_charge(command)
 
-
 def lockdoors(command):
     return api_set_lock(command)
-
 
 def setairco(action, temp):
     return api_set_hvac(action, temp, False, False)
