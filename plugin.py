@@ -122,22 +122,32 @@ class BasePlugin:
         if self.AFSTAND_ICON in Images: Domoticz.Debug("ID: " + str(Images[self.AFSTAND_ICON].ID))
         else:                           Domoticz.Image(AFSTAND_ICON+".zip").Create()
         '''
-        if (len(Devices) == 0):
-            Domoticz.Device(Unit=1, Type=113, Subtype=0 , Switchtype=3 , Name="km-stand").Create()
+        if (1 not in Devices):
+            Domoticz.Device(Unit=1, Type=113, Subtype=0 , Switchtype=3 , Name="odometer").Create()
+        if (2 not in Devices):
             Domoticz.Device(Unit=2, Type=243, Subtype=31, Switchtype=0 , Name="range").Create()
+        if (3 not in Devices):
             Domoticz.Device(Unit=3, Type=244, Subtype=73, Switchtype=0 , Name="charging").Create()
+        if (4 not in Devices):
             Domoticz.Device(Unit=4, TypeName="Percentage"              , Name="soc").Create()
+        if (5 not in Devices):
             Domoticz.Device(Unit=5, TypeName="Percentage"              , Name="soc 12v").Create()
+        if (6 not in Devices):
             Domoticz.Device(Unit=6, Type=243, Subtype=31, Switchtype=0 , Name="status 12v").Create()
-            Domoticz.Device(Unit=7, Type=244, Subtype=73, Switchtype=11, Name="kofferbak").Create()
-            Domoticz.Device(Unit=8, Type=243, Subtype=31, Switchtype=0 , Name="afstand van huis").Create()
+        if (7 not in Devices):
+            Domoticz.Device(Unit=7, Type=244, Subtype=73, Switchtype=11, Name="tailgate").Create()
+        if (8 not in Devices):
+            Domoticz.Device(Unit=8, Type=243, Subtype=31, Switchtype=0 , Name="distance from home").Create()
+        if (9 not in Devices):
             Domoticz.Device(Unit=9, Type=244, Subtype=73, Switchtype=0 , Name="force status update").Create()
+        if (10 not in Devices):
             Domoticz.Device(Unit=10, Type=244, Subtype=73, Switchtype=19 , Name="doors").Create()
+        if (11 not in Devices):
             Domoticz.Device(Unit=11, Type=242, Subtype=1,                  Name="temperature").Create()
-            Domoticz.Log("Devices created.")
-            if Parameters["SerialPort"] == "1":
-                Domoticz.Debugging(1)
-                DumpConfigToLog()
+        Domoticz.Log("Devices created.")
+        if Parameters["SerialPort"] == "1":
+            Domoticz.Debugging(1)
+            DumpConfigToLog()
         p_email = Parameters["Username"]
         p_password = Parameters["Password"]
         p_pin = Parameters["Port"]
@@ -185,7 +195,8 @@ class BasePlugin:
         if Unit==11:
             climate = "off" if Level < 17 else "on"
             setairco(climate,Level)
-            Devices[11].Update(nValue=0, sValue=str(Level), Name="eNiro - airco: "+climate)
+            pluginName = Devices[11].Name.split("-")[0]
+            Devices[11].Update(nValue=0, sValue=str(Level), Name=pluginName + " - airco: " + climate)
         return True
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
@@ -207,17 +218,18 @@ class BasePlugin:
                     logging.debug("about to update devices")
                     logging.debug(parsedStatus)
                     UpdateDevice(1, 0, parsedStatus['odometer'])  # kmstand
-                    UpdateDevice(2, 0, parsedStatus['range'])  # bereik
+                    UpdateDevice(2, 0, parsedStatus['range'])  # range
                     UpdateDevice(3, parsedStatus['charging'], parsedStatus['charging'])  # charging
                     UpdateDevice(4, parsedStatus['chargeHV'], parsedStatus['chargeHV'])  # soc
                     UpdateDevice(5, parsedStatus['charge12V'], parsedStatus['charge12V'])  # soc12v
                     UpdateDevice(6, parsedStatus['status12V'], parsedStatus['status12V'])  # status 12v
-                    UpdateDevice(7, parsedStatus['trunkopen'], parsedStatus['trunkopen'])  # kofferbak
+                    UpdateDevice(7, parsedStatus['trunkopen'], parsedStatus['trunkopen'])  # tailgate
                     if str(Devices[8].sValue) != str(afstand) or Devices[8].Name != googlelocation:
                         Devices[8].Update(nValue=0, sValue=str(afstand), Name=googlelocation)
                         Domoticz.Log("Update " +  str(afstand) + "' (" + Devices[8].Name + ")")
                     UpdateDevice(10, parsedStatus['locked'], parsedStatus['locked'])  # deuren
-                    climate = "eNiro - airco: on" if (parsedStatus['climateactive'] == True) else "eNiro - airco: off"
+                    pluginName = Devices[11].Name.split("-")[0]
+                    climate = pluginName + " - airco: on" if (parsedStatus['climateactive'] == True) else pluginName + " - airco: off"
                     Level = parsedStatus['temperature']
                     Devices[11].Update(nValue=0, sValue=str(Level), Name= climate)
         except:
@@ -303,12 +315,12 @@ def DumpConfigToLog():
     Domoticz.Debug("Device count: " + str(len(Devices)))
     for x in Devices:
         Domoticz.Debug("Device:           " + str(x) + " - " + str(Devices[x]))
-        Domoticz.Debug("Device ID:       '" + str(Devices[x].ID) + "'")
-        Domoticz.Debug("Device Name:     '" + Devices[x].Name + "'")
-        Domoticz.Debug("Device nValue:    " + str(Devices[x].nValue))
-        Domoticz.Debug("Device sValue:   '" + Devices[x].sValue + "'")
-        Domoticz.Debug("Device LastLevel: " + str(Devices[x].LastLevel))
-        Domoticz.Debug("Device Image:     " + str(Devices[x].Image))
+        # Domoticz.Debug("Device ID:       '" + str(Devices[x].ID) + "'")
+        # Domoticz.Debug("Device Name:     '" + Devices[x].Name + "'")
+        # Domoticz.Debug("Device nValue:    " + str(Devices[x].nValue))
+        # Domoticz.Debug("Device sValue:   '" + Devices[x].sValue + "'")
+        # Domoticz.Debug("Device LastLevel: " + str(Devices[x].LastLevel))
+        # Domoticz.Debug("Device Image:     " + str(Devices[x].Image))
     return
 
 
