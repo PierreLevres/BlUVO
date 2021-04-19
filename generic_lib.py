@@ -24,7 +24,6 @@ def convert_to_bool(value):
 
 def georeverse(lat, lon):
     get_address_url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&lat=' + str(lat) + '&lon=' + str(lon)
-    print(get_address_url)
     response = requests.get(get_address_url)
     if response.status_code == 200:
         response = json.loads(response.text)
@@ -41,10 +40,6 @@ def geolookup(locationtolookup):
             response = json.loads(response.text)
             response = response['features'][0]
             poi_info_element = {
-                "phone": "",
-                "waypointID": 0,
-                "lang": 1,
-                "src": "HERE",
                 "coord": {
                     "lat": response['geometry']['coordinates'][1],
                     "alt": 0,
@@ -52,7 +47,6 @@ def geolookup(locationtolookup):
                     "type": 0
                 },
                 "addr": response['properties']['geocoding']['label'],
-                "zip": "",
                 "placeid": response['properties']['geocoding']['label'],
                 "name": locationtolookup
             }

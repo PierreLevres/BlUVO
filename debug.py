@@ -17,8 +17,8 @@ mainmenuoptions = ['Status', 'Control', 'Reports']
 statusmenuoptions = ['status cache raw', 'status cache formatted', 'Status refresh', 'location cache',
                      'location refresh', 'loop status', 'Get charge schedule', 'Get services', 'valet mode',
                      'get charge target', 'full status cache', 'full status refresh']
-controlmenuoptions = ['Lock', 'Unlock', 'Navigate to', 'Set Charge Limits', 'Start heating', 'Stop heating',
-                      'Start charge', 'Stop charge', 'Create ABRP plan (demo, no data send to car)']
+controlmenuoptions = ['Lock', 'Unlock', 'Navigate to and send first 3 steps to car', 'Set Charge Limits', 'Start heating', 'Stop heating',
+                      'Start charge', 'Stop charge', 'Create ABRP plan and send first 3 to car']
 reportmenuoptions = ['Monthly report', 'trips']
 
 mainmenu = SelectionMenu(mainmenuoptions)
@@ -100,7 +100,6 @@ while True:
             if y == 2:
                 poiInfoList = []
                 while True:
-                    i = 0
                     locatie = input(
                         "Press Enter address to navigate to, or add multiple locations (final destination comes first) on 1 line seperated by |, enter empty line to finish entering locations \n-> ")
                     if locatie is None or locatie == "": break
@@ -108,8 +107,6 @@ while True:
                     print(lijstlocaties)
                     for locatie in lijstlocaties:
                         poiElement = geolookup(locatie)
-                        poiElement['waypointID'] = i
-                        i += 1
                         if poiElement is not False: poiInfoList.append(poiElement)
                 pprint.pprint(poiInfoList)
                 pprint.pprint(vehicle.api_set_navigation(poiInfoList))
@@ -124,7 +121,6 @@ while True:
             if y == 5:
                 pprint.pprint(vehicle.api_set_hvac('stop'))
             if y == 6:
-                invoer = input("temperature eg 20.0")
                 pprint.pprint(vehicle.api_set_charge('start'))
             if y == 7:
                 pprint.pprint(vehicle.api_set_charge('stop'))
@@ -135,11 +131,26 @@ while True:
 
                 destinations = [{"lat": status.vehicleLocation.coord.lat, "lon": status.vehicleLocation.coord.lon},
                                 {"lat": arrive['lat'], "lon": arrive['lon']}]
-                for step in get_abrprouteplan(destinations, p_abrp_carmodel,
-                                              status.vehicleStatus.evStatus.batteryStatus):
-                    print(
-                        '%s,%s: %s %s' % (step['lat'], step['lon'], step['name'], georeverse(step['lat'], step['lon'])))
-                    # todo Send This to Car9
+                route = get_abrprouteplan(destinations, p_abrp_carmodel, status.vehicleStatus.evStatus.batteryStatus)
+                print(route)
+                poiInfoList = []
+                i = 1
+                for step in route:
+                    print('%s,%s: %s %s' % (step['lat'], step['lon'], step['name'], georeverse(step['lat'], step['lon'])))
+                    poiElement = {
+                        "phone": "",
+                        "waypointID": len(route) - i,
+                        "lang": 1,
+                        "src": "HERE",
+                        "coord": {"lat": step['lat'], "alt": 0, "lon": step['lon'], "type": 0 },
+                        "addr": georeverse(step['lat'], step['lon']),
+                        "zip": "",
+                        "placeid": step['name'],
+                        "name": step['name']
+                    }
+                    if i > 1: poiInfoList.insert(0,poiElement)  # skip first waypoint, since that is starting location
+                    i += 1
+                pprint.pprint(vehicle.api_set_navigation(poiInfoList))
         if x == 2:
             y = reportmenu.get_selection(reportmenuoptions)
             if y == 0:

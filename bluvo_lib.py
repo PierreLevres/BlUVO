@@ -8,7 +8,7 @@ import urllib.parse as urlparse
 from urllib.parse import parse_qs
 from datetime import datetime, timedelta
 from time import time
-
+from pprint import pprint
 global ServiceId, BasicToken, ApplicationId, BaseHost, BaseURL, UserAgentPreLogon, UserAgent, ContentType, ContentJSON, AcceptLanguage, AcceptLanguageShort, AcceptEncoding, Connection, Accept, CcspApplicationId
 global controlToken, controlTokenExpiresAt
 global accessToken, accessTokenExpiresAt, refreshToken
@@ -868,9 +868,9 @@ def api_set_navigation(poi_info_list):
         'Stamp': stamp,
         'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON, 'ccsp-device-id': deviceId
     }
-    data = poi_info_list
-    poi_info_list['deviceID'] = deviceId
-    response = requests.post(url, json=poi_info_list, headers=headers)
+    data = {'deviceID': deviceId, 'poiInfoList': poi_info_list }
+    pprint.pprint(data)
+    response = requests.post(url, json=data, headers=headers)
     if response.status_code == 200:
         return True
     else:

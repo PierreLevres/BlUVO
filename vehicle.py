@@ -614,6 +614,18 @@ class EUvehicle:
 
     def api_set_navigation(self, poiinformations):
         print(poiinformations)
+        if len(poiinformations) > 3:
+            poiinformations[1] = poiinformations[-2]
+            poiinformations[2] = poiinformations[-1]
+            poiinformations = poiinformations[:3]
+        i = 0
+        for poiinformation in poiinformations:
+            poiinformation['waypointID'] = i
+            poiinformation["zip"] = poiinformation["phone"]= ""
+            poiinformation["lang"]= 1
+            poiinformation["src"]= "HERE"
+            i += 1
+        print(poiinformations)
         # todo get input from formatted @dataclass
         if not self.check_control_token(): return False
         url = BaseURL[self.userConfig.brand] + '/api/v2/spa/vehicles/' + self.vehicleConfig.id + '/location/routes'
@@ -626,7 +638,7 @@ class EUvehicle:
             'User-Agent': UserAgent, 'Connection': Connection, 'Content-Type': ContentJSON,
             'ccsp-device-id': self.controller.session.deviceId
         }
-        data = {'deviceID': self.controller.session.deviceId, 'poiInfoList': poiinformations}
+        data = {'deviceId': self.controller.session.deviceId, 'poiInfoList': poiinformations}
         response = requests.post(url, json=data, headers=headers)
         if response.status_code == 200:
             return True
