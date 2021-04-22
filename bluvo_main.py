@@ -133,6 +133,8 @@ def pollcar(manualForcePoll):
                 parsed_status, afstand, googlelocation = process_data(carstatus, location, odometer)
                 oldstatustime = carstatus['time']
                 updated = True
+            else:
+                logging.debug("oldstatustime == carstatus['time']")
             try: sleepmodecheck = carstatus['sleepModeCheck']
             except KeyError: sleepmodecheck = False  # sleep mode check is not there...
             # at minimum every interval minutes a true poll
@@ -183,6 +185,8 @@ def pollcar(manualForcePoll):
                         updated = True
                         # logging.debug("entering worker with location %s and status %s", freshlocation, carstatus)
                         parsed_status, afstand, googlelocation = process_data(carstatus, location, odometer)
+        else:
+            logging.debug("carstatus is False")
     except:
         oldpolltime = datetime.now()
         logging.error('error in poll procedure, breakpoint: %s', break_point)

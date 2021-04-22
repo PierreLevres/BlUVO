@@ -129,21 +129,24 @@ class BasePlugin:
         if (3 not in Devices):
             Domoticz.Device(Unit=3, Type=244, Subtype=73, Switchtype=0 , Name="charging").Create()
         if (4 not in Devices):
-            Domoticz.Device(Unit=4, TypeName="Percentage"              , Name="soc").Create()
+            Domoticz.Device(Unit=4, TypeName="Percentage"              , Name="Battery percentage").Create()
         if (5 not in Devices):
-            Domoticz.Device(Unit=5, TypeName="Percentage"              , Name="soc 12v").Create()
+            Domoticz.Device(Unit=5, TypeName="Percentage"              , Name="Battery 12v").Create()
         if (6 not in Devices):
             Domoticz.Device(Unit=6, Type=243, Subtype=31, Switchtype=0 , Name="status 12v").Create()
         if (7 not in Devices):
             Domoticz.Device(Unit=7, Type=244, Subtype=73, Switchtype=11, Name="tailgate").Create()
         if (8 not in Devices):
-            Domoticz.Device(Unit=8, Type=243, Subtype=31, Switchtype=0 , Name="distance from home").Create()
+            Domoticz.Device(Unit=8, Type=243, Subtype=19                , Name="distance from home: 0").Create()
+            Devices[8].Update(nValue=0, sValue="Location update needed")
         if (9 not in Devices):
             Domoticz.Device(Unit=9, Type=244, Subtype=73, Switchtype=0 , Name="force status update").Create()
         if (10 not in Devices):
             Domoticz.Device(Unit=10, Type=244, Subtype=73, Switchtype=19 , Name="doors").Create()
         if (11 not in Devices):
-            Domoticz.Device(Unit=11, Type=242, Subtype=1,                  Name="temperature").Create()
+            Domoticz.Device(Unit=11, Type=242, Subtype=1,                  Name="airco: off").Create()
+        if (12 not in Devices):
+            Domoticz.Device(Unit=12, Type=244, Subtype=73, Switchtype=11, Name="hood").Create()
         Domoticz.Log("Devices created.")
         if Parameters["SerialPort"] == "1":
             Domoticz.Debugging(1)
@@ -195,8 +198,8 @@ class BasePlugin:
         if Unit==11:
             climate = "off" if Level < 17 else "on"
             setairco(climate,Level)
-            pluginName = Devices[11].Name.split("-")[0]
-            Devices[11].Update(nValue=0, sValue=str(Level), Name=pluginName + " - airco: " + climate)
+            pluginName = Devices[11].Name.split(":")[0]
+            Devices[11].Update(nValue=0, sValue=str(Level), Name=pluginName + ": " + climate)
         return True
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
@@ -214,22 +217,26 @@ class BasePlugin:
             if lastHeartbeatTime == 0 or float((datetime.now() - lastHeartbeatTime).total_seconds()) > (random.uniform(0.75,1.5)*(heartbeatmultiplier * heartbeatinterval)):
                 lastHeartbeatTime = datetime.now()
                 updated, parsedStatus, afstand, googlelocation = pollcar(manualForcePoll)
+                pluginName = Devices[11].Name.split("-")[0]
+                googlelocation = googlelocation + pluginName + " - location</a>"
                 if updated:
                     logging.debug("about to update devices")
-                    logging.debug(parsedStatus)
+                    logging.debug("parsedStatus: " + str(parsedStatus))
                     UpdateDevice(1, 0, parsedStatus['odometer'])  # kmstand
                     UpdateDevice(2, 0, parsedStatus['range'])  # range
                     UpdateDevice(3, parsedStatus['charging'], parsedStatus['charging'])  # charging
-                    UpdateDevice(4, parsedStatus['chargeHV'], parsedStatus['chargeHV'])  # soc
+                    if (parsedStatus['chargeHV']>0):    #avoid to set soc=0% 
+                        UpdateDevice(4, parsedStatus['chargeHV'], parsedStatus['chargeHV'])  # soc
                     UpdateDevice(5, parsedStatus['charge12V'], parsedStatus['charge12V'])  # soc12v
                     UpdateDevice(6, parsedStatus['status12V'], parsedStatus['status12V'])  # status 12v
                     UpdateDevice(7, parsedStatus['trunkopen'], parsedStatus['trunkopen'])  # tailgate
-                    if str(Devices[8].sValue) != str(afstand) or Devices[8].Name != googlelocation:
-                        Devices[8].Update(nValue=0, sValue=str(afstand), Name=googlelocation)
+                    UpdateDevice(12, parsedStatus['hoodopen'], parsedStatus['hoodopen'])  # hood
+                    if Devices[8].Name != str(afstand) or str(Devices[8].sValue) != googlelocation:
+                        Devices[8].Update(nValue=0, sValue=googlelocation, Name=pluginName + "- Distance from home: " + str(afstand))
                         Domoticz.Log("Update " +  str(afstand) + "' (" + Devices[8].Name + ")")
                     UpdateDevice(10, parsedStatus['locked'], parsedStatus['locked'])  # deuren
-                    pluginName = Devices[11].Name.split("-")[0]
-                    climate = pluginName + " - airco: on" if (parsedStatus['climateactive'] == True) else pluginName + " - airco: off"
+                    pluginName = Devices[11].Name.split(":")[0]
+                    climate = pluginName + ": on" if (parsedStatus['climateactive'] == True) else pluginName + ": off"
                     Level = parsedStatus['temperature']
                     Devices[11].Update(nValue=0, sValue=str(Level), Name= climate)
         except:
