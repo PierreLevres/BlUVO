@@ -220,7 +220,7 @@ class BasePlugin:
                 lastHeartbeatTime = datetime.now()
                 updated, parsedStatus, afstand, googlelocation = pollcar(manualForcePoll)
                 pluginName = Devices[11].Name.split("-")[0]
-                googlelocation = googlelocation + pluginName + " - location</a>"
+                googlelocation = '<a target="_blank" rel="noopener noreferrer" ' + googlelocation + pluginName + " - location</a> "
                 if updated:
                     logging.debug("about to update devices")
                     logging.debug("parsedStatus: " + str(parsedStatus))

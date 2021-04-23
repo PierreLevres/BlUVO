@@ -57,7 +57,7 @@ def process_data(carstatus, location, odometer):
         homelat = float(loc[0])
         homelon = float(loc[1])
         afstand = round(distance(parsedstatus['loclat'], parsedstatus['loclon'], float(homelat), float(homelon)), 1)
-        googlelocation = '<a href="http://www.google.com/maps/search/?api=1&query=' + str(parsedstatus['loclat']) + ',' + str(
+        googlelocation = 'href="http://www.google.com/maps/search/?api=1&query=' + str(parsedstatus['loclat']) + ',' + str(
             parsedstatus['loclon']) + '">'
         send_abr_ptelemetry(parsedstatus['chargeHV'], parsedstatus['speed'], parsedstatus['loclat'], parsedstatus['loclon'], parsedstatus['charging'],
                             abrp_carmodel, abrp_token, WeatherApiKey, WeatherProvider)
