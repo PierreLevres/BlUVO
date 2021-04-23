@@ -122,6 +122,8 @@ class BasePlugin:
         if self.AFSTAND_ICON in Images: Domoticz.Debug("ID: " + str(Images[self.AFSTAND_ICON].ID))
         else:                           Domoticz.Image(AFSTAND_ICON+".zip").Create()
         '''
+        if "Maps icon" not in Images:
+            Domoticz.Image("Maps icon.zip").Create()
         if (1 not in Devices):
             Domoticz.Device(Unit=1, Type=113, Subtype=0 , Switchtype=3 , Name="odometer").Create()
         if (2 not in Devices):
@@ -137,7 +139,7 @@ class BasePlugin:
         if (7 not in Devices):
             Domoticz.Device(Unit=7, Type=244, Subtype=73, Switchtype=11, Name="tailgate").Create()
         if (8 not in Devices):
-            Domoticz.Device(Unit=8, Type=243, Subtype=19                , Name="distance from home: 0").Create()
+            Domoticz.Device(Unit=8, Type=243, Subtype=19, Image=Images["Maps icon"].ID, Name="distance from home: 0").Create()
             Devices[8].Update(nValue=0, sValue="Location update needed")
         if (9 not in Devices):
             Domoticz.Device(Unit=9, Type=244, Subtype=73, Switchtype=0 , Name="force status update").Create()
