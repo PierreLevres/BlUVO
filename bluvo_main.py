@@ -51,7 +51,8 @@ def process_data(carstatus, location, odometer):
             'loclat': location['coord']['lat'],
             'loclon': location['coord']['lon'],
             'odometer': odometer,
-            'time': carstatus['time']
+            'time': carstatus['time'],
+            'chargingTime': carstatus['evStatus']['remainTime2']['atc'] ['value']
         }
         loc = homelocation.split(";")
         homelat = float(loc[0])

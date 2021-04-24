@@ -149,6 +149,10 @@ class BasePlugin:
             Domoticz.Device(Unit=11, Type=242, Subtype=1,                  Name="airco: off").Create()
         if (12 not in Devices):
             Domoticz.Device(Unit=12, Type=244, Subtype=73, Switchtype=11, Name="hood").Create()
+        if (13 not in Devices):
+            Domoticz.Device(Unit=13, Type=243, Subtype=31, Name="current speed").Create()
+        if (14 not in Devices):
+            Domoticz.Device(Unit=14, Type=243, Subtype=31, Name="Remaining charge time",  Options = {'Custom':'1;hrs'}).Create()
         Domoticz.Log("Devices created.")
         if Parameters["SerialPort"] == "1":
             Domoticz.Debugging(1)
@@ -233,6 +237,8 @@ class BasePlugin:
                     UpdateDevice(6, parsedStatus['status12V'], parsedStatus['status12V'])  # status 12v
                     UpdateDevice(7, parsedStatus['trunkopen'], parsedStatus['trunkopen'])  # tailgate
                     UpdateDevice(12, parsedStatus['hoodopen'], parsedStatus['hoodopen'])  # hood
+                    UpdateDevice(13, 0, str(parsedStatus['speed'])+" km/h")  # current speed
+                    UpdateDevice(14, 0, str(parsedStatus['chargingTime']/60))  # remaining charge time in hrs
                     if Devices[8].Name != str(afstand) or str(Devices[8].sValue) != googlelocation:
                         Devices[8].Update(nValue=0, sValue=googlelocation, Name=pluginName + "- Distance from home: " + str(afstand))
                         Domoticz.Log("Update " +  str(afstand) + "' (" + Devices[8].Name + ")")
