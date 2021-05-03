@@ -1,3 +1,6 @@
+This plugin is not being maintained anymore.
+
+
 # BlUVO
  
 BlUvo Plugin
