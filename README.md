@@ -8,6 +8,11 @@ An application or Domoticz plugin for Kia UVO and Hyundai Bluelink EV's (general
 Note, if you experience a 401 error:
 - Remove session.pkl and restart.
 - If running from Domoticz, be sure to move kialist.txt and hyundailist.txt into your domoticz homefolder.
+These two sets of 'stammps' need to be recreated every once in a while (might be weekly).
+To do so, run the following commands on your system (you need to have docker installed)
+*docker run hacksore/hks "hyundai" "list" "99cfff84-f4e2-4be8-a5ed-e5b755eb6581" > hyundailist.txt
+docker run hacksore/hks "kia" "list" "693a33fa-c117-43f2-ae3b-61a02d24f417" > kialist.txt
+*
 
 This plugin will communicate with servers of Kia and Hyundai and through them with your car. Polling your car means draining battery and worst case, an empty battery. Educate yourself by googling "auxiliary battery drain Niro Kona Soul"
 
