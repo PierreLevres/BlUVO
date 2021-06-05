@@ -51,14 +51,15 @@ def process_data(carstatus, location, odometer):
             'loclat': location['coord']['lat'],
             'loclon': location['coord']['lon'],
             'odometer': odometer,
-            'time': carstatus['time']
+            'time': carstatus['time'],
+            'chargingTime': carstatus['evStatus']['remainTime2']['atc'] ['value']
         }
         loc = homelocation.split(";")
         homelat = float(loc[0])
         homelon = float(loc[1])
         afstand = round(distance(parsedstatus['loclat'], parsedstatus['loclon'], float(homelat), float(homelon)), 1)
-        googlelocation = '<a href="http://www.google.com/maps/search/?api=1&query=' + str(parsedstatus['loclat']) + ',' + str(
-            parsedstatus['loclon']) + '">eNiro - Afstand van huis</a>'
+        googlelocation = 'href="http://www.google.com/maps/search/?api=1&query=' + str(parsedstatus['loclat']) + ',' + str(
+            parsedstatus['loclon']) + '">'
         send_abr_ptelemetry(parsedstatus['chargeHV'], parsedstatus['speed'], parsedstatus['loclat'], parsedstatus['loclon'], parsedstatus['charging'],
                             abrp_carmodel, abrp_token, WeatherApiKey, WeatherProvider)
     except:
@@ -133,6 +134,8 @@ def pollcar(manualForcePoll):
                 parsed_status, afstand, googlelocation = process_data(carstatus, location, odometer)
                 oldstatustime = carstatus['time']
                 updated = True
+            else:
+                logging.debug("oldstatustime == carstatus['time']")
             try: sleepmodecheck = carstatus['sleepModeCheck']
             except KeyError: sleepmodecheck = False  # sleep mode check is not there...
             # at minimum every interval minutes a true poll
@@ -183,6 +186,8 @@ def pollcar(manualForcePoll):
                         updated = True
                         # logging.debug("entering worker with location %s and status %s", freshlocation, carstatus)
                         parsed_status, afstand, googlelocation = process_data(carstatus, location, odometer)
+        else:
+            logging.debug("carstatus is False")
     except:
         oldpolltime = datetime.now()
         logging.error('error in poll procedure, breakpoint: %s', break_point)
